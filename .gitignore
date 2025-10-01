@@ -23,3 +23,7 @@ MIGRATION_GUIDE.md
 
 # Dev tooling
 .cursor/
+
+# Local helper scripts/tools
+cleanup_for_spm.sh
+extract_info.swift
