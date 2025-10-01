@@ -1,0 +1,22 @@
+{
+    "configurations": [
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:MediaInfoKit}",
+            "name": "Debug test_enumerate",
+            "program": "${workspaceFolder:MediaInfoKit}/.build/debug/test_enumerate",
+            "preLaunchTask": "swift: Build Debug test_enumerate"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:MediaInfoKit}",
+            "name": "Release test_enumerate",
+            "program": "${workspaceFolder:MediaInfoKit}/.build/release/test_enumerate",
+            "preLaunchTask": "swift: Build Release test_enumerate"
+        }
+    ]
+}

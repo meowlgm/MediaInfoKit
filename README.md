@@ -6,7 +6,7 @@
 
 MediaInfoKit is a very simple high level wrapper of MediaInfo library for OSX applications.
 
-The frameworks was compiled and tested with Xcode 7 on El capitan and is fully compatible with Objective-C 2.0 and Swift 2.0. The project required OS X 10.8 and used ARC and Cocoa
+The frameworks was compiled and tested with the latest Xcode and is fully compatible with Objective-C and Swift 6. The project required macOS 10.13 (High Sierra) or later and uses ARC and Cocoa.
 
 The repository is composed of MediaInfoKit and of two samples (one written in Objective-C and the other one in Swift).
 
@@ -36,11 +36,11 @@ The frameworks is based on only one class named `MIKMediaInfo`. This class allow
 
 Swift code example: (Objective-C version is similar)
 
-```
+```swift
 // Create a MIKMediaInfo instance for a specified file
 
-let bundle = NSBundle.mainBundle()
-guard let movieURL = bundle.URLForResource("movie", withExtension: "mov") else {
+let bundle = Bundle.main
+guard let movieURL = bundle.url(forResource: "movie", withExtension: "mov") else {
     fatalError("The movie cannot be found.")
 }
 
@@ -56,7 +56,7 @@ let value = info.valueForKey(MIKCompleteNameKey, streamKey: MIKGeneralStreamKey)
 
 // Get a single value at an index in constant time
 
-let value = valueAtIndex(2, streamKey: MIKGeneralStreamKey)
+let value = info.valueAtIndex(2, streamKey: MIKGeneralStreamKey)
 
 
 // Enumerate all values by keeping the original order
@@ -69,12 +69,11 @@ info.enumerateOrderedValuesForStreamKey(MIKVideoStreamKey) { key, value in
 // Export all information with the specified format
 
 let exportExt = MIKMediaInfo.extensionForFormat(.JSON)
-let exportURL = movieURL.URLByAppendingPathExtension(exportExt)
+let exportURL = movieURL.appendingPathExtension(exportExt)
 
-if info.writeAsFormat(.JSON,  toURL: exportURL) {
-    print("File was written successfully").
+if info.writeAsFormat(.JSON, toURL: exportURL) {
+    print("File was written successfully")
 }
-
 ```
 
 ## Installation
