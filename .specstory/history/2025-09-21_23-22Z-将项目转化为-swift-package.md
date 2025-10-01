@@ -10004,6 +10004,1198 @@ Tool use: **todo_write**
 
 ---
 
+Tool use: **read_file**
+
+Read file: /Users/meowlgm/Downloads/MediaInfoKit/Package.swift
+
+---
+
+<think><details><summary>Thought Process</summary>**Planning cleanup steps**
+
+I need to follow the developer's guidelines after the user asked to "请开始清理." First, I should check if I need to update Package.swift by removing the executable product/test target. It seems they want to push as a package, possibly without including the test executable. 
+
+Next, I'll delete 'test_enumerate.swift' and remove other temporary files like 'Whisper_MediaInfo_Output.txt' and '美国队长4_MediaInfo_Output.txt'. Those shouldn’t be in the repo, so I’ll add a .gitignore to ignore files like *_MediaInfo_Output.txt and .DS_Store. 
+
+Finally, I need to fix any invalid exclude warnings regarding Info.plist and MIKMediaInfo.mm.backup in Package.swift.
+**Deciding on cleanup strategy**
+
+I’m thinking about whether to keep or remove certain exclusions, and since they’ll likely cause warnings, it’s better to just remove them. Now, regarding the test target, there’s a 'MediaInfoKitTests' pointing to 'Tests,' but since earlier tests were deleted, I'm unsure if it’s worth keeping it. Also, SPM allows empty test targets, but that might cause a build fail. 
+
+Since the user asked for cleaning before publishing, I'll remove both the test target and the 'Sources/TestEnumerate' directory. For 'test_enumerate.swift', I’ll delete that too. As for the 'Whisper.m4a' test media, it seems unnecessary since it’s quite large, even though the user did mention using it earlier.
+**Deciding on media and .gitignore settings**
+
+For the repository, I think it’s better not to commit large media files like 'Whisper.m4a'. Even though the user didn’t ask to remove it and indicated it should remain, adding it to .gitignore is a good compromise to prevent future similar files from being committed. Since we're removing the test executable, it shouldn't affect replicability.
+
+I’ll set up the .gitignore with relevant lines: .build/, DerivedData/, .DS_Store, and possibly *.txt. But I need to be careful since ignoring all .txt files might unintentionally exclude the README file.
+**Organizing cleanup tasks**
+
+I’m thinking about ignoring the "*_MediaInfo_Output.txt" files in the git repository. Also, I need to ensure that the umbrella header 'MediaInfoKit.h' includes 'NSString+MIK.h', which we've already done. 
+
+Next, I’ll adjust Package.swift by removing the 'TestEnumerate' product and target while fixing any invalid excludes. After rebuilding to ensure everything passes with 'swift build,' I’ll initialize git and prepare for the initial commit. 
+
+Then, I’ll use the apply_patch tool to update Package.swift, removing the executable product and the test target. Finally, I need to delete the 'Sources/TestEnumerate' directory, but I’ll have to do that by listing the files individually since the delete_file tool works only for single files.
+**Streamlining the cleanup process**
+
+I’m considering whether to keep the folder, but aiming for a clean setup means I should remove it. I can delete files individually, so I'll start by listing the directory. I also need to delete 'test_enumerate.swift' and the output text files like 'Whisper_MediaInfo_Output.txt' and '美国队长4_MediaInfo_Output.txt'.
+
+I’ll create a .gitignore file using the apply_patch tool, and then I’ll run 'swift build' to ensure it builds without 'TestEnumerate'. To improve efficiency, I can run the patch and delete operations in parallel. 
+
+I’ll implement the steps: apply the patch to Package.swift, list the files to delete, create the .gitignore, and run the final build. Finally, I’ll initialize git, commit, and tag with v1.0.0. Let's get started!</details></think>
+
+---
+
+我先移除可执行产品与测试 target，并清理无效 exclude；随后删除临时脚本/输出文件并添加 .gitignore，最后重建与初始化 git。
+
+---
+
+Tool use: **apply_patch**
+
+---
+
+Tool use: **run_terminal_cmd**
+
+```bash
+cd /Users/meowlgm/Downloads/MediaInfoKit && rm -f test_enumerate.swift Whisper_MediaInfo_Output.txt 美国队长4_MediaInfo_Output.txt && rm -rf Sources/TestEnumerate Tests && cat > .gitignore << 'EOF'
+.build/
+DerivedData/
+.DS_Store
+xcuserdata/
+*.xcworkspace
+*.xcodeproj
+*.user
+*.swp
+*.swo
+EOF
+
+```
+
+---
+
+Tool use: **todo_write**
+
+## Todo List
+
+- [x] 移除示例可执行产品与源代码
+- [x] 修正 Package.swift 无效 exclude 与宏配置
+- [x] 添加 .gitignore（忽略构建与测试输出）
+- [x] 删除临时脚本与不需要文件
+- [-] 构建验证包能独立通过
+- [ ] 初始化 git、首个提交与 v1.0.0 tag
+
+---
+
+Tool use: **run_terminal_cmd**
+
+```bash
+cd /Users/meowlgm/Downloads/MediaInfoKit && swift build 2>&1 | tail -40
+```
+
+```
+[0/1] Planning build
+Building for debugging...
+Build complete! (0.72s)
+
+```
+
+---
+
+Tool use: **todo_write**
+
+## Todo List
+
+- [x] 移除示例可执行产品与源代码
+- [x] 修正 Package.swift 无效 exclude 与宏配置
+- [x] 添加 .gitignore（忽略构建与测试输出）
+- [x] 删除临时脚本与不需要文件
+- [x] 构建验证包能独立通过
+- [-] 初始化 git、首个提交与 v1.0.0 tag
+
+---
+
+Tool use: **run_terminal_cmd**
+
+```bash
+cd /Users/meowlgm/Downloads/MediaInfoKit && git init && git add . && git commit -m "SPM package: source-integrated MediaInfoKit (API preserved); clean config" && git tag v1.0.0 && git status -sb
+```
+
+```
+Reinitialized existing Git repository in /Users/meowlgm/Downloads/MediaInfoKit/.git/
+[master f41a2aa] SPM package: source-integrated MediaInfoKit (API preserved); clean config
+ Committer: meowlgm <meowlgm@meowlgmdeMac-mini.local>
+Your name and email address were configured automatically based
+on your username and hostname. Please check that they are accurate.
+You can suppress this message by setting them explicitly:
+
+    git config --global user.name "Your Name"
+    git config --global user.email you@example.com
+
+After doing this, you may fix the identity used for this commit with:
+
+    git commit --amend --reset-author
+
+ 924 files changed, 557971 insertions(+), 13596 deletions(-)
+ create mode 100644 .cursor/rules/myrule.mdc
+ create mode 100644 .cursorindexingignore
+ create mode 100644 .specstory/.gitignore
+ create mode 100644 ".specstory/history/2025-06-06_23-09-\351\200\202\351\205\215mediainfo\351\241\271\347\233\256\345\210\260\346\226\260\347\263\273\347\273\237.md"
+ create mode 100644 ".specstory/history/2025-09-19_09-42Z-\346\243\200\346\237\245\346\216\245\345\217\243\350\216\267\345\217\226-complete-\345\217\202\346\225\260\347\232\204\346\226\207\344\273\266\344\277\241\346\201\257.md"
+ create mode 100644 ".specstory/history/2025-09-21_23-22Z-\345\260\206\351\241\271\347\233\256\350\275\254\345\214\226\344\270\272-swift-package.md"
+ create mode 100644 .vscode/launch.json
+ create mode 100644 MIGRATION_GUIDE.md
+ delete mode 100755 MediaInfoDemo/MediaInfoDemo-ObjC/Base.lproj/Main.storyboard
+ delete mode 100755 MediaInfoDemo/MediaInfoDemo-ObjC/Document.h
+ delete mode 100755 MediaInfoDemo/MediaInfoDemo-ObjC/Document.m
+ delete mode 100644 MediaInfoDemo/MediaInfoDemo-ObjC/MediaInfoDemo.entitlements
+ delete mode 100755 MediaInfoDemo/MediaInfoDemo-ObjC/ViewController.h
+ delete mode 100755 MediaInfoDemo/MediaInfoDemo-ObjC/ViewController.m
+ delete mode 100755 MediaInfoDemo/MediaInfoDemo-Objc.xcodeproj/project.pbxproj
+ delete mode 100644 MediaInfoDemo/MediaInfoDemo-Objc.xcodeproj/project.xcworkspace/contents.xcworkspacedata
+ delete mode 100644 MediaInfoDemo/MediaInfoDemo-Objc.xcodeproj/project.xcworkspace/xcuserdata/jeremyvizzini.xcuserdatad/UserInterfaceState.xcuserstate
+ delete mode 100644 MediaInfoDemo/MediaInfoDemo-Objc.xcodeproj/xcuserdata/jeremyvizzini.xcuserdatad/xcschemes/MediaInfoDemo-Objc.xcscheme
+ delete mode 100644 MediaInfoDemo/MediaInfoDemo-Objc.xcodeproj/xcuserdata/jeremyvizzini.xcuserdatad/xcschemes/xcschememanagement.plist
+ delete mode 100755 MediaInfoDemo/MediaInfoDemo-Objc/AppDelegate.h
+ delete mode 100755 MediaInfoDemo/MediaInfoDemo-Objc/AppDelegate.m
+ delete mode 100755 MediaInfoDemo/MediaInfoDemo-Objc/Info.plist
+ delete mode 100755 MediaInfoDemo/MediaInfoDemo-Objc/main.m
+ delete mode 100755 MediaInfoDemo/MediaInfoDemo-Swift.xcodeproj/project.pbxproj
+ delete mode 100755 MediaInfoDemo/MediaInfoDemo-Swift.xcodeproj/project.xcworkspace/contents.xcworkspacedata
+ delete mode 100755 MediaInfoDemo/MediaInfoDemo-Swift.xcodeproj/project.xcworkspace/xcuserdata/jeremyvizzini.xcuserdatad/UserInterfaceState.xcuserstate
+ delete mode 100755 MediaInfoDemo/MediaInfoDemo-Swift.xcodeproj/xcuserdata/jeremyvizzini.xcuserdatad/xcschemes/MediaInfoDemo-Swift.xcscheme
+ delete mode 100755 MediaInfoDemo/MediaInfoDemo-Swift.xcodeproj/xcuserdata/jeremyvizzini.xcuserdatad/xcschemes/xcschememanagement.plist
+ delete mode 100755 MediaInfoDemo/MediaInfoDemo-Swift/AppDelegate.swift
+ delete mode 100755 MediaInfoDemo/MediaInfoDemo-Swift/Base.lproj/MainMenu.xib
+ delete mode 100755 MediaInfoDemo/MediaInfoDemo-Swift/BridgingHeader.h
+ delete mode 100755 MediaInfoDemo/MediaInfoDemo-Swift/Info.plist
+ delete mode 100755 MediaInfoKit.xcodeproj/project.pbxproj
+ delete mode 100755 MediaInfoKit.xcodeproj/project.xcworkspace/contents.xcworkspacedata
+ delete mode 100755 MediaInfoKit.xcodeproj/project.xcworkspace/xcuserdata/jeremyvizzini.xcuserdatad/UserInterfaceState.xcuserstate
+ delete mode 100755 MediaInfoKit.xcodeproj/xcuserdata/jeremyvizzini.xcuserdatad/xcschemes/MediaInfoKit.xcscheme
+ delete mode 100755 MediaInfoKit.xcodeproj/xcuserdata/jeremyvizzini.xcuserdatad/xcschemes/xcschememanagement.plist
+ delete mode 100755 MediaInfoKit.xcworkspace/contents.xcworkspacedata
+ delete mode 100755 MediaInfoKit.xcworkspace/xcuserdata/jeremyvizzini.xcuserdatad/UserInterfaceState.xcuserstate
+ delete mode 100755 MediaInfoKit/Info.plist
+ delete mode 100755 MediaInfoKit/MIKMediaInfo.mm
+ delete mode 100644 MediaInfoLib/Changes.txt
+ delete mode 100644 MediaInfoLib/Developpers/Doc/MediaInfoDLL_8h_source.html
+ delete mode 100644 MediaInfoLib/Developpers/Doc/MediaInfoList_8h_source.html
+ delete mode 100644 MediaInfoLib/Developpers/Doc/MediaInfo_8h_source.html
+ delete mode 100644 MediaInfoLib/Developpers/Doc/MediaInfo__Const_8h_source.html
+ delete mode 100644 MediaInfoLib/Developpers/Doc/annotated.html
+ delete mode 100644 MediaInfoLib/Developpers/Doc/bc_s.png
+ delete mode 100644 MediaInfoLib/Developpers/Doc/bdwn.png
+ delete mode 100644 MediaInfoLib/Developpers/Doc/classMediaInfoLib_1_1MediaInfo-members.html
+ delete mode 100644 MediaInfoLib/Developpers/Doc/classMediaInfoLib_1_1MediaInfo.html
+ delete mode 100644 MediaInfoLib/Developpers/Doc/classMediaInfoLib_1_1MediaInfoList-members.html
+ delete mode 100644 MediaInfoLib/Developpers/Doc/classMediaInfoLib_1_1MediaInfoList.html
+ delete mode 100644 MediaInfoLib/Developpers/Doc/classes.html
+ delete mode 100644 MediaInfoLib/Developpers/Doc/closed.png
+ delete mode 100644 MediaInfoLib/Developpers/Doc/dir_04ac3ca04e7df05c28b97e8a54b78cec.html
+ delete mode 100644 MediaInfoLib/Developpers/Doc/dir_04ac3ca04e7df05c28b97e8a54b78cec_dep.map
+ delete mode 100644 MediaInfoLib/Developpers/Doc/dir_04ac3ca04e7df05c28b97e8a54b78cec_dep.md5
+ delete mode 100644 MediaInfoLib/Developpers/Doc/dir_04ac3ca04e7df05c28b97e8a54b78cec_dep.png
+ delete mode 100644 MediaInfoLib/Developpers/Doc/dir_1948383ebc858d7498bcb23a8a53c434.html
+ delete mode 100644 MediaInfoLib/Developpers/Doc/dir_1948383ebc858d7498bcb23a8a53c434_dep.map
+ delete mode 100644 MediaInfoLib/Developpers/Doc/dir_1948383ebc858d7498bcb23a8a53c434_dep.md5
+ delete mode 100644 MediaInfoLib/Developpers/Doc/dir_1948383ebc858d7498bcb23a8a53c434_dep.png
+ delete mode 100644 MediaInfoLib/Developpers/Doc/doxygen.css
+ delete mode 100644 MediaInfoLib/Developpers/Doc/doxygen.png
+ delete mode 100644 MediaInfoLib/Developpers/Doc/dynsections.js
+ delete mode 100644 MediaInfoLib/Developpers/Doc/files.html
+ delete mode 100644 MediaInfoLib/Developpers/Doc/ftv2blank.png
+ delete mode 100644 MediaInfoLib/Developpers/Doc/ftv2doc.png
+ delete mode 100644 MediaInfoLib/Developpers/Doc/ftv2folderclosed.png
+ delete mode 100644 MediaInfoLib/Developpers/Doc/ftv2folderopen.png
+ delete mode 100644 MediaInfoLib/Developpers/Doc/ftv2lastnode.png
+ delete mode 100644 MediaInfoLib/Developpers/Doc/ftv2link.png
+ delete mode 100644 MediaInfoLib/Developpers/Doc/ftv2mlastnode.png
+ delete mode 100644 MediaInfoLib/Developpers/Doc/ftv2mnode.png
+ delete mode 100644 MediaInfoLib/Developpers/Doc/ftv2node.png
+ delete mode 100644 MediaInfoLib/Developpers/Doc/ftv2plastnode.png
+ delete mode 100644 MediaInfoLib/Developpers/Doc/ftv2pnode.png
+ delete mode 100644 MediaInfoLib/Developpers/Doc/ftv2splitbar.png
+ delete mode 100644 MediaInfoLib/Developpers/Doc/ftv2vertline.png
+ delete mode 100644 MediaInfoLib/Developpers/Doc/functions.html
+ delete mode 100644 MediaInfoLib/Developpers/Doc/functions_func.html
+ delete mode 100644 MediaInfoLib/Developpers/Doc/graph_legend.html
+ delete mode 100644 MediaInfoLib/Developpers/Doc/graph_legend.md5
+ delete mode 100644 MediaInfoLib/Developpers/Doc/graph_legend.png
+ delete mode 100644 MediaInfoLib/Developpers/Doc/index.html
+ delete mode 100644 MediaInfoLib/Developpers/Doc/namespaceMediaInfoLib.html
+ delete mode 100644 MediaInfoLib/Developpers/Doc/namespacemembers.html
+ delete mode 100644 MediaInfoLib/Developpers/Doc/namespacemembers_enum.html
+ delete mode 100644 MediaInfoLib/Developpers/Doc/namespacemembers_eval.html
+ delete mode 100644 MediaInfoLib/Developpers/Doc/namespacemembers_type.html
+ delete mode 100644 MediaInfoLib/Developpers/Doc/namespaces.html
+ delete mode 100644 MediaInfoLib/Developpers/Doc/nav_f.png
+ delete mode 100644 MediaInfoLib/Developpers/Doc/nav_g.png
+ delete mode 100644 MediaInfoLib/Developpers/Doc/nav_h.png
+ delete mode 100644 MediaInfoLib/Developpers/Doc/open.png
+ delete mode 100644 MediaInfoLib/Developpers/Doc/sync_off.png
+ delete mode 100644 MediaInfoLib/Developpers/Doc/sync_on.png
+ delete mode 100644 MediaInfoLib/Developpers/Doc/tab_a.png
+ delete mode 100644 MediaInfoLib/Developpers/Doc/tab_b.png
+ delete mode 100644 MediaInfoLib/Developpers/Doc/tab_h.png
+ delete mode 100644 MediaInfoLib/Developpers/Doc/tab_s.png
+ delete mode 100644 MediaInfoLib/Developpers/Doc/tabs.css
+ delete mode 100644 MediaInfoLib/Developpers/Source/Example/HowToUse_Dll.py
+ delete mode 100644 MediaInfoLib/History.txt
+ delete mode 100644 MediaInfoLib/License.html
+ delete mode 100644 MediaInfoLib/ReadMe.txt
+ delete mode 100755 MediaInfoLib/libmediainfo.0.dylib
+ create mode 100644 PROJECT_ENHANCEMENTS.md
+ create mode 100644 Package.swift
+ create mode 100644 README_CN.md
+ create mode 100644 SOLUTION_SUMMARY.md
+ create mode 100644 SPM_USAGE.md
+ rename {MediaInfoKit => Sources/MediaInfoKit}/MIKConstants.m (100%)
+ create mode 100755 Sources/MediaInfoKit/MIKMediaInfo.mm
+ rename {MediaInfoKit => Sources/MediaInfoKit}/NSString+MIK.mm (100%)
+ rename {MediaInfoKit => Sources/MediaInfoKit/include}/MIKConstants.h (100%)
+ rename {MediaInfoKit => Sources/MediaInfoKit/include}/MIKFormat.h (100%)
+ rename {MediaInfoKit => Sources/MediaInfoKit/include}/MIKMediaInfo.h (95%)
+ rename {MediaInfoKit => Sources/MediaInfoKit/include}/MediaInfoKit.h (82%)
+ rename {MediaInfoKit => Sources/MediaInfoKit/include}/NSString+MIK.h (100%)
+ rename {MediaInfoLib/Developpers => Sources/MediaInfoLib/Doc}/Documentation.html (100%)
+ create mode 100644 Sources/MediaInfoLib/Doc/Doxyfile
+ create mode 100644 Sources/MediaInfoLib/Doc/setlocale.txt
+ rename {MediaInfoLib/Developpers/Source => Sources/MediaInfoLib}/Example/HowToUse.cpp (100%)
+ rename {MediaInfoLib/Developpers/Source => Sources/MediaInfoLib}/Example/HowToUse_Dll.JNative.java (100%)
+ rename {MediaInfoLib/Developpers/Source => Sources/MediaInfoLib}/Example/HowToUse_Dll.au3 (100%)
+ rename {MediaInfoLib/Developpers/Source => Sources/MediaInfoLib}/Example/HowToUse_Dll.cpp (89%)
+ rename {MediaInfoLib/Developpers/Source => Sources/MediaInfoLib}/Example/HowToUse_Dll.cs (100%)
+ create mode 100644 Sources/MediaInfoLib/Example/HowToUse_Dll.html
+ rename MediaInfoLib/Developpers/Source/Example/HowToUse_Dll.JNA.java => Sources/MediaInfoLib/Example/HowToUse_Dll.java (92%)
+ create mode 100644 Sources/MediaInfoLib/Example/HowToUse_Dll.py
+ rename {MediaInfoLib/Developpers/Source => Sources/MediaInfoLib}/Example/HowToUse_Dll3.py (56%)
+ create mode 100644 Sources/MediaInfoLib/Example/HowToUse_Dll_AndroidWebView.txt
+ rename {MediaInfoLib/Developpers/Source => Sources/MediaInfoLib}/Example/HowToUse_Dll_CLI.cs (100%)
+ create mode 100644 Sources/MediaInfoLib/Install/MediaInfo_DLL_Windows_ARM64.nsi
+ create mode 100644 Sources/MediaInfoLib/Install/MediaInfo_DLL_Windows_i386.nsi
+ create mode 100644 Sources/MediaInfoLib/Install/MediaInfo_DLL_Windows_x64.nsi
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/.gitignore
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Archive/File_7z.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Archive/File_7z.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Archive/File_Ace.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Archive/File_Ace.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Archive/File_Bzip2.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Archive/File_Bzip2.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Archive/File_Elf.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Archive/File_Elf.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Archive/File_Gzip.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Archive/File_Gzip.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Archive/File_Iso9660.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Archive/File_Iso9660.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Archive/File_MachO.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Archive/File_MachO.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Archive/File_Mz.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Archive/File_Mz.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Archive/File_Rar.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Archive/File_Rar.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Archive/File_Tar.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Archive/File_Tar.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Archive/File_Zip.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Archive/File_Zip.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Aac.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Aac.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Aac_GeneralAudio.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Aac_GeneralAudio.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Aac_GeneralAudio_Sbr.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Aac_GeneralAudio_Sbr.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Aac_GeneralAudio_Sbr_Ps.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Aac_GeneralAudio_Sbr_Ps.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Aac_Main.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Aac_Others.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Ac3.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Ac3.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Ac4.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Ac4.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Adm.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Adm.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Adpcm.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Adpcm.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Als.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Als.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Amr.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Amr.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Amv.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Amv.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Ape.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Ape.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Aptx100.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Aptx100.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Au.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Au.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Caf.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Caf.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Celt.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Celt.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_ChannelGrouping.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_ChannelGrouping.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_ChannelSplitting.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_ChannelSplitting.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Dat.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Dat.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_DolbyAudioMetadata.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_DolbyAudioMetadata.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_DolbyE.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_DolbyE.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Dsdiff.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Dsdiff.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Dsf.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Dsf.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Dts.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Dts.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_DtsUhd.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_DtsUhd.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_ExtendedModule.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_ExtendedModule.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Flac.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Flac.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Iab.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Iab.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Iamf.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Iamf.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_ImpulseTracker.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_ImpulseTracker.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_La.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_La.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Mga.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Mga.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Midi.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Midi.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Module.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Module.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Mpc.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Mpc.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_MpcSv8.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_MpcSv8.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Mpega.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Mpega.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Mpegh3da.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Mpegh3da.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_OpenMG.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_OpenMG.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Opus.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Opus.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Pcm.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Pcm.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Pcm_M2ts.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Pcm_M2ts.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Pcm_Vob.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Pcm_Vob.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Ps2Audio.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Ps2Audio.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Rkau.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Rkau.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_ScreamTracker3.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_ScreamTracker3.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_SmpteSt0302.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_SmpteSt0302.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_SmpteSt0331.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_SmpteSt0331.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_SmpteSt0337.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_SmpteSt0337.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Speex.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Speex.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Tak.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Tak.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Tta.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Tta.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_TwinVQ.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_TwinVQ.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Usac.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Usac.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Vorbis.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Vorbis.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Wvpk.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Audio/File_Wvpk.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Duplicate/File__Duplicate_MpegTs.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Duplicate/File__Duplicate_MpegTs.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Duplicate/File__Duplicate__Base.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Duplicate/File__Duplicate__Base.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Duplicate/File__Duplicate__Writer.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Duplicate/File__Duplicate__Writer.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Export/Export_EbuCore.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Export/Export_EbuCore.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Export/Export_Fims.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Export/Export_Fims.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Export/Export_Graph.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Export/Export_Graph.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Export/Export_Graph_gvc_Include.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Export/Export_Mpeg7.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Export/Export_Mpeg7.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Export/Export_Niso.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Export/Export_Niso.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Export/Export_PBCore.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Export/Export_PBCore.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Export/Export_PBCore2.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Export/Export_PBCore2.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Export/Export_reVTMD.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Export/Export_reVTMD.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/ExternalCommandHelpers.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/ExternalCommandHelpers.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/File_Dummy.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/File_Dummy.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/File_Other.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/File_Other.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/File_Unknown.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/File_Unknown.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/File__Analyse_Automatic.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/File__Analyze.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/File__Analyze.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/File__Analyze_Buffer.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/File__Analyze_Buffer_MinimizeSize.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/File__Analyze_Element.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/File__Analyze_Element.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/File__Analyze_MinimizeSize.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/File__Analyze_Streams.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/File__Analyze_Streams_Finish.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/File__Base.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/File__Base.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/File__Duplicate.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/File__Duplicate.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/File__HasReferences.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/File__HasReferences.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/File__MultipleParsing.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/File__MultipleParsing.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/HashWrapper.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/HashWrapper.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Image/File_ArriRaw.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Image/File_ArriRaw.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Image/File_Bmp.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Image/File_Bmp.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Image/File_Bpg.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Image/File_Bpg.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Image/File_Dds.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Image/File_Dds.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Image/File_Dpx.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Image/File_Dpx.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Image/File_Exr.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Image/File_Exr.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Image/File_GainMap.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Image/File_GainMap.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Image/File_Gif.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Image/File_Gif.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Image/File_Ico.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Image/File_Ico.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Image/File_Jpeg.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Image/File_Jpeg.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Image/File_Pcx.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Image/File_Pcx.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Image/File_Png.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Image/File_Png.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Image/File_Psd.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Image/File_Psd.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Image/File_Rle.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Image/File_Rle.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Image/File_Tga.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Image/File_Tga.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Image/File_Tiff.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Image/File_Tiff.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Image/File_WebP.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Image/File_WebP.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/MediaInfo.cpp
+ rename {MediaInfoLib/Developpers/Include => Sources/MediaInfoLib}/MediaInfo/MediaInfo.h (97%)
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/MediaInfoList.cpp
+ rename {MediaInfoLib/Developpers/Include => Sources/MediaInfoLib}/MediaInfo/MediaInfoList.h (97%)
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/MediaInfoList_Internal.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/MediaInfoList_Internal.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/MediaInfo_Config.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/MediaInfo_Config.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/MediaInfo_Config_Automatic.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/MediaInfo_Config_MediaInfo.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/MediaInfo_Config_MediaInfo.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/MediaInfo_Config_PerPackage.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/MediaInfo_Config_PerPackage.h
+ rename {MediaInfoLib/Developpers/Include => Sources/MediaInfoLib}/MediaInfo/MediaInfo_Const.h (96%)
+ rename {MediaInfoLib/Developpers/Include => Sources/MediaInfoLib}/MediaInfo/MediaInfo_Events.h (65%)
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/MediaInfo_Events_Internal.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/MediaInfo_File.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/MediaInfo_Inform.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/MediaInfo_Internal.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/MediaInfo_Internal.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/MediaInfo_Internal_Const.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Aaf.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Aaf.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Ancillary.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Ancillary.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Bdmv.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Bdmv.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Cdxa.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Cdxa.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_DashMpd.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_DashMpd.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_DcpAm.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_DcpAm.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_DcpCpl.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_DcpCpl.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_DcpPkl.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_DcpPkl.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Dpg.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Dpg.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_DvDif.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_DvDif.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_DvDif_Analysis.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Dvdv.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Dvdv.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Dxw.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Dxw.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Flv.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Flv.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Gxf.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Gxf.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Gxf_TimeCode.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Gxf_TimeCode.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_HdsF4m.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_HdsF4m.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Hls.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Hls.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Ibi.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Ibi.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Ibi_Creation.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Ibi_Creation.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Ism.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Ism.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Ivf.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Ivf.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Lxf.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Lxf.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_MiXml.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_MiXml.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Mk.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Mk.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Mpeg4.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Mpeg4.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Mpeg4_Descriptors.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Mpeg4_Descriptors.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Mpeg4_Elements.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Mpeg4_TimeCode.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Mpeg4_TimeCode.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_MpegPs.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_MpegPs.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_MpegTs.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_MpegTs.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_MpegTs_Duplicate.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Mpeg_Descriptors.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Mpeg_Descriptors.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Mpeg_Psi.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Mpeg_Psi.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Mxf.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Mxf.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Mxf_Automated.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Nsv.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Nsv.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Nut.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Nut.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Ogg.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Ogg.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Ogg_SubElement.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Ogg_SubElement.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_P2_Clip.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_P2_Clip.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Pmp.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Pmp.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Ptx.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Ptx.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Riff.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Riff.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Riff_Elements.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Rm.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Rm.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_SequenceInfo.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_SequenceInfo.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Skm.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Skm.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Swf.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Swf.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Umf.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Umf.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Vbi.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Vbi.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Wm.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Wm.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Wm_Elements.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Wtv.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Wtv.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Xdcam_Clip.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File_Xdcam_Clip.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File__ReferenceFilesHelper.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File__ReferenceFilesHelper.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File__ReferenceFilesHelper_Resource.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File__ReferenceFilesHelper_Resource.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File__ReferenceFilesHelper_Sequence.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Multiple/File__ReferenceFilesHelper_Sequence.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/OutputHelpers.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/OutputHelpers.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/PreComp.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/PreComp.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Reader/Reader_Directory.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Reader/Reader_Directory.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Reader/Reader_File.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Reader/Reader_File.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Reader/Reader__Base.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Reader/Reader_libcurl.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Reader/Reader_libcurl.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Reader/Reader_libcurl_Include.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Reader/Reader_libmms.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Reader/Reader_libmms.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Setup.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Tag/File_ApeTag.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Tag/File_ApeTag.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Tag/File_C2pa.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Tag/File_C2pa.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Tag/File_Exif.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Tag/File_Exif.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Tag/File_Icc.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Tag/File_Icc.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Tag/File_Id3.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Tag/File_Id3.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Tag/File_Id3v2.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Tag/File_Id3v2.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Tag/File_Iim.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Tag/File_Iim.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Tag/File_Lyrics3.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Tag/File_Lyrics3.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Tag/File_Lyrics3v2.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Tag/File_Lyrics3v2.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Tag/File_PropertyList.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Tag/File_PropertyList.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Tag/File_SphericalVideo.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Tag/File_SphericalVideo.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Tag/File_VorbisCom.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Tag/File_VorbisCom.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Tag/File_Xmp.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Tag/File_Xmp.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Tag/File__Tags.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Tag/File__Tags.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Text/File_AribStdB24B37.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Text/File_AribStdB24B37.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Text/File_Cdp.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Text/File_Cdp.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Text/File_Cmml.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Text/File_Cmml.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Text/File_DtvccTransport.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Text/File_DtvccTransport.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Text/File_DvbSubtitle.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Text/File_DvbSubtitle.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Text/File_Eia608.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Text/File_Eia608.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Text/File_Eia708.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Text/File_Eia708.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Text/File_Kate.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Text/File_Kate.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Text/File_N19.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Text/File_N19.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Text/File_OtherText.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Text/File_OtherText.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Text/File_Pac.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Text/File_Pac.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Text/File_Pac_Codepages.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Text/File_Pdf.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Text/File_Pdf.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Text/File_Pgs.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Text/File_Pgs.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Text/File_Scc.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Text/File_Scc.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Text/File_Scte20.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Text/File_Scte20.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Text/File_Sdp.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Text/File_Sdp.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Text/File_SubRip.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Text/File_SubRip.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Text/File_Teletext.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Text/File_Teletext.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Text/File_TimedText.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Text/File_TimedText.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Text/File_Ttml.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Text/File_Ttml.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/TimeCode.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/TimeCode.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Video/File_AfdBarData.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Video/File_AfdBarData.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Video/File_Aic.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Video/File_Aic.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Video/File_Av1.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Video/File_Av1.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Video/File_Avc.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Video/File_Avc.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Video/File_Avc_Duplicate.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Video/File_Avs3V.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Video/File_Avs3V.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Video/File_AvsV.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Video/File_AvsV.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Video/File_Canopus.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Video/File_Canopus.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Video/File_CineForm.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Video/File_CineForm.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Video/File_Dirac.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Video/File_Dirac.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Video/File_DolbyVisionMetadata.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Video/File_DolbyVisionMetadata.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Video/File_Ffv1.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Video/File_Ffv1.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Video/File_Flic.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Video/File_Flic.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Video/File_Fraps.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Video/File_Fraps.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Video/File_H263.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Video/File_H263.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Video/File_HdrVividMetadata.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Video/File_HdrVividMetadata.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Video/File_Hevc.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Video/File_Hevc.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Video/File_HuffYuv.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Video/File_HuffYuv.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Video/File_Lagarith.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Video/File_Lagarith.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Video/File_Mpeg4v.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Video/File_Mpeg4v.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Video/File_Mpegv.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Video/File_Mpegv.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Video/File_ProRes.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Video/File_ProRes.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Video/File_Theora.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Video/File_Theora.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Video/File_Vc1.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Video/File_Vc1.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Video/File_Vc3.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Video/File_Vc3.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Video/File_Vp8.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Video/File_Vp8.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Video/File_Vp9.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Video/File_Vp9.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Video/File_Vvc.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Video/File_Vvc.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Video/File_Y4m.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/Video/File_Y4m.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/XmlUtils.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfo/XmlUtils.h
+ create mode 100644 Sources/MediaInfoLib/MediaInfoDLL/.gitignore
+ rename {MediaInfoLib/Developpers/Include => Sources/MediaInfoLib}/MediaInfoDLL/MediaInfoDLL.JNA.java (81%)
+ create mode 100644 Sources/MediaInfoLib/MediaInfoDLL/MediaInfoDLL.JNI.java
+ rename {MediaInfoLib/Developpers/Include => Sources/MediaInfoLib}/MediaInfoDLL/MediaInfoDLL.JNative.java (100%)
+ create mode 100644 Sources/MediaInfoLib/MediaInfoDLL/MediaInfoDLL.cpp
+ rename {MediaInfoLib/Developpers/Include => Sources/MediaInfoLib}/MediaInfoDLL/MediaInfoDLL.cs (97%)
+ create mode 100644 Sources/MediaInfoLib/MediaInfoDLL/MediaInfoDLL.def
+ rename {MediaInfoLib/Developpers/Include => Sources/MediaInfoLib}/MediaInfoDLL/MediaInfoDLL.h (96%)
+ create mode 100644 Sources/MediaInfoLib/MediaInfoDLL/MediaInfoDLL.jsl
+ create mode 100644 Sources/MediaInfoLib/MediaInfoDLL/MediaInfoDLL.pas
+ create mode 100644 Sources/MediaInfoLib/MediaInfoDLL/MediaInfoDLL.pb
+ rename {MediaInfoLib/Developpers/Include => Sources/MediaInfoLib}/MediaInfoDLL/MediaInfoDLL.py (64%)
+ create mode 100644 Sources/MediaInfoLib/MediaInfoDLL/MediaInfoDLL.rc
+ create mode 100644 Sources/MediaInfoLib/MediaInfoDLL/MediaInfoDLL.vb
+ rename {MediaInfoLib/Developpers/Include => Sources/MediaInfoLib}/MediaInfoDLL/MediaInfoDLL3.py (74%)
+ rename {MediaInfoLib/Developpers/Include => Sources/MediaInfoLib}/MediaInfoDLL/MediaInfoDLL_Static.h (100%)
+ create mode 100644 Sources/MediaInfoLib/MediaInfoDLL/MediaInfoJNI.cpp
+ create mode 100644 Sources/MediaInfoLib/MediaInfoDLL/MediaInfoJS.cpp
+ create mode 100644 Sources/MediaInfoLib/PreRelease/Enums.cpp
+ create mode 100644 Sources/MediaInfoLib/PreRelease/Enums.h
+ create mode 100644 Sources/MediaInfoLib/PreRelease/FieldsDescription.cpp
+ create mode 100644 Sources/MediaInfoLib/PreRelease/OldFiles.cpp
+ create mode 100644 Sources/MediaInfoLib/PreRelease/OldFiles.h
+ create mode 100644 Sources/MediaInfoLib/PreRelease/Resources.cpp
+ create mode 100644 Sources/MediaInfoLib/PreRelease/Resources.h
+ create mode 100644 Sources/MediaInfoLib/PreRelease/VCL/PreRelease_.cpp
+ create mode 100644 Sources/MediaInfoLib/PreRelease/VCL/PreRelease_.dfm
+ create mode 100644 Sources/MediaInfoLib/PreRelease/VCL/PreRelease_.h
+ create mode 100644 Sources/MediaInfoLib/PreRelease/WxWidgets/App.cpp
+ create mode 100644 Sources/MediaInfoLib/PreRelease/WxWidgets/App.h
+ create mode 100644 Sources/MediaInfoLib/PreRelease/WxWidgets/GUI_Main.cpp
+ create mode 100644 Sources/MediaInfoLib/PreRelease/WxWidgets/GUI_Main.h
+ create mode 100644 Sources/MediaInfoLib/RegressionTest/RegressionTest.cpp
+ create mode 100644 Sources/MediaInfoLib/RegressionTest/RegressionTest.h
+ create mode 100644 Sources/MediaInfoLib/RegressionTest/RegressionTest_Basic.cpp
+ create mode 100644 Sources/MediaInfoLib/RegressionTest/RegressionTest_Events.cpp
+ create mode 100644 Sources/MediaInfoLib/RegressionTest/RegressionTest_Md5.cpp
+ create mode 100644 Sources/MediaInfoLib/Resource/Image/MediaInfo.ico
+ create mode 100644 Sources/MediaInfoLib/Resource/JavaScript/Post.js
+ create mode 100644 Sources/MediaInfoLib/Resource/Text/DataBase/Codec.csv
+ create mode 100644 Sources/MediaInfoLib/Resource/Text/DataBase/CodecID_Audio_Matroska.csv
+ create mode 100644 Sources/MediaInfoLib/Resource/Text/DataBase/CodecID_Audio_Mpeg4.csv
+ create mode 100644 Sources/MediaInfoLib/Resource/Text/DataBase/CodecID_Audio_Real.csv
+ create mode 100644 Sources/MediaInfoLib/Resource/Text/DataBase/CodecID_Audio_Riff.csv
+ create mode 100644 Sources/MediaInfoLib/Resource/Text/DataBase/CodecID_General_Mpeg4.csv
+ create mode 100644 Sources/MediaInfoLib/Resource/Text/DataBase/CodecID_Other_Mpeg4.csv
+ create mode 100644 Sources/MediaInfoLib/Resource/Text/DataBase/CodecID_Text_Matroska.csv
+ create mode 100644 Sources/MediaInfoLib/Resource/Text/DataBase/CodecID_Text_Mpeg4.csv
+ create mode 100644 Sources/MediaInfoLib/Resource/Text/DataBase/CodecID_Text_Riff.csv
+ create mode 100644 Sources/MediaInfoLib/Resource/Text/DataBase/CodecID_Video_Matroska.csv
+ create mode 100644 Sources/MediaInfoLib/Resource/Text/DataBase/CodecID_Video_Mpeg4.csv
+ create mode 100644 Sources/MediaInfoLib/Resource/Text/DataBase/CodecID_Video_Real.csv
+ create mode 100644 Sources/MediaInfoLib/Resource/Text/DataBase/CodecID_Video_Riff.csv
+ create mode 100644 Sources/MediaInfoLib/Resource/Text/DataBase/Format.csv
+ create mode 100644 Sources/MediaInfoLib/Resource/Text/DataBase/Iso639_1.csv
+ create mode 100644 Sources/MediaInfoLib/Resource/Text/DataBase/Iso639_2.csv
+ create mode 100644 Sources/MediaInfoLib/Resource/Text/DataBase/Library_DivX.csv
+ create mode 100644 Sources/MediaInfoLib/Resource/Text/DataBase/Library_MainConcept_Avc.csv
+ create mode 100644 Sources/MediaInfoLib/Resource/Text/DataBase/Library_VorbisCom.csv
+ create mode 100644 Sources/MediaInfoLib/Resource/Text/DataBase/Library_XviD.csv
+ create mode 100644 Sources/MediaInfoLib/Resource/Text/Enums_.1.txt
+ create mode 100644 Sources/MediaInfoLib/Resource/Text/Enums_.2.txt
+ create mode 100644 Sources/MediaInfoLib/Resource/Text/Enums_.5.txt
+ create mode 100644 Sources/MediaInfoLib/Resource/Text/Enums_.8.txt
+ create mode 100644 Sources/MediaInfoLib/Resource/Text/Enums_.9.txt
+ create mode 100644 Sources/MediaInfoLib/Resource/Text/Language/DefaultLanguage.csv
+ create mode 100644 Sources/MediaInfoLib/Resource/Text/Mapping/Audio.csv
+ create mode 100644 Sources/MediaInfoLib/Resource/Text/Mapping/General.csv
+ create mode 100644 Sources/MediaInfoLib/Resource/Text/Mapping/Text.csv
+ create mode 100644 Sources/MediaInfoLib/Resource/Text/Mapping/Video.csv
+ create mode 100644 Sources/MediaInfoLib/Resource/Text/MediaInfo/Summary.csv
+ create mode 100644 Sources/MediaInfoLib/Resource/Text/Stream/Audio.csv
+ create mode 100644 Sources/MediaInfoLib/Resource/Text/Stream/General.csv
+ create mode 100644 Sources/MediaInfoLib/Resource/Text/Stream/General_Info_About_Levels.csv
+ create mode 100644 Sources/MediaInfoLib/Resource/Text/Stream/Generic.csv
+ create mode 100644 Sources/MediaInfoLib/Resource/Text/Stream/Image.csv
+ create mode 100644 Sources/MediaInfoLib/Resource/Text/Stream/Menu.csv
+ create mode 100644 Sources/MediaInfoLib/Resource/Text/Stream/Other.csv
+ create mode 100644 Sources/MediaInfoLib/Resource/Text/Stream/Text.csv
+ create mode 100644 Sources/MediaInfoLib/Resource/Text/Stream/Video.csv
+ create mode 100644 Sources/MediaInfoLib/Resource/Text/_.1.txt
+ create mode 100644 Sources/MediaInfoLib/Resource/Text/_.2.txt
+ create mode 100644 Sources/MediaInfoLib/Resource/Text/_.5.txt
+ create mode 100644 Sources/MediaInfoLib/Resource/Text/_.8.txt
+ create mode 100644 Sources/MediaInfoLib/Resource/Text/_.9.txt
+ create mode 100644 Sources/MediaInfoLib/ThirdParty/.gitignore
+ create mode 100644 Sources/MediaInfoLib/ThirdParty/aes-gladman/aes.h
+ create mode 100644 Sources/MediaInfoLib/ThirdParty/aes-gladman/aes.txt
+ create mode 100644 Sources/MediaInfoLib/ThirdParty/aes-gladman/aes_amd64.asm
+ create mode 100644 Sources/MediaInfoLib/ThirdParty/aes-gladman/aes_modes.c
+ create mode 100644 Sources/MediaInfoLib/ThirdParty/aes-gladman/aes_ni.c
+ create mode 100644 Sources/MediaInfoLib/ThirdParty/aes-gladman/aes_ni.h
+ create mode 100644 Sources/MediaInfoLib/ThirdParty/aes-gladman/aes_via_ace.h
+ create mode 100644 Sources/MediaInfoLib/ThirdParty/aes-gladman/aes_x86_v1.asm
+ create mode 100644 Sources/MediaInfoLib/ThirdParty/aes-gladman/aes_x86_v2.asm
+ create mode 100644 Sources/MediaInfoLib/ThirdParty/aes-gladman/aescpp.h
+ create mode 100644 Sources/MediaInfoLib/ThirdParty/aes-gladman/aescrypt.c
+ create mode 100644 Sources/MediaInfoLib/ThirdParty/aes-gladman/aeskey.c
+ create mode 100644 Sources/MediaInfoLib/ThirdParty/aes-gladman/aesopt.h
+ create mode 100644 Sources/MediaInfoLib/ThirdParty/aes-gladman/aestab.c
+ create mode 100644 Sources/MediaInfoLib/ThirdParty/aes-gladman/aestab.h
+ create mode 100644 Sources/MediaInfoLib/ThirdParty/aes-gladman/aesxam.c
+ create mode 100644 Sources/MediaInfoLib/ThirdParty/aes-gladman/brg_endian.h
+ create mode 100644 Sources/MediaInfoLib/ThirdParty/aes-gladman/brg_types.h
+ create mode 100644 Sources/MediaInfoLib/ThirdParty/aes-gladman/tablegen.c
+ create mode 100644 Sources/MediaInfoLib/ThirdParty/aes-gladman/via_ace.txt
+ create mode 100644 Sources/MediaInfoLib/ThirdParty/base64/base64.h
+ create mode 100644 Sources/MediaInfoLib/ThirdParty/fmt/base.h
+ create mode 100644 Sources/MediaInfoLib/ThirdParty/fmt/format-inl.h
+ create mode 100644 Sources/MediaInfoLib/ThirdParty/fmt/format.cc
+ create mode 100644 Sources/MediaInfoLib/ThirdParty/fmt/format.h
+ create mode 100644 Sources/MediaInfoLib/ThirdParty/hmac-gladman/hmac.c
+ create mode 100644 Sources/MediaInfoLib/ThirdParty/hmac-gladman/hmac.h
+ create mode 100644 Sources/MediaInfoLib/ThirdParty/hmac-gladman/pwd2key.c
+ create mode 100644 Sources/MediaInfoLib/ThirdParty/hmac-gladman/pwd2key.h
+ create mode 100644 Sources/MediaInfoLib/ThirdParty/jni/jni.h
+ create mode 100644 Sources/MediaInfoLib/ThirdParty/md5/md5.c
+ create mode 100644 Sources/MediaInfoLib/ThirdParty/md5/md5.h
+ create mode 100644 Sources/MediaInfoLib/ThirdParty/sha1-gladman/sha1.c
+ create mode 100644 Sources/MediaInfoLib/ThirdParty/sha1-gladman/sha1.h
+ create mode 100644 Sources/MediaInfoLib/ThirdParty/sha2-gladman/sha2.c
+ create mode 100644 Sources/MediaInfoLib/ThirdParty/sha2-gladman/sha2.h
+ create mode 100644 Sources/MediaInfoLib/ThirdParty/sha2-gladman/shasum.c
+ create mode 100644 Sources/MediaInfoLib/ThirdParty/tfsxml/tfsxml.c
+ create mode 100644 Sources/MediaInfoLib/ThirdParty/tfsxml/tfsxml.h
+ create mode 100644 Sources/MediaInfoLib/ThirdParty/tinyxml2/tinyxml2.cpp
+ create mode 100644 Sources/MediaInfoLib/ThirdParty/tinyxml2/tinyxml2.h
+ create mode 100644 Sources/ZenLib/History.txt
+ create mode 100644 Sources/ZenLib/License.txt
+ create mode 100644 Sources/ZenLib/Project/BCB/CleanUp.bat
+ create mode 100644 Sources/ZenLib/Project/BCB/Example/ZenLib_Test.cbproj
+ create mode 100644 Sources/ZenLib/Project/BCB/Example/ZenLib_Test.res
+ create mode 100644 Sources/ZenLib/Project/BCB/Library/ZenLib.cbproj
+ create mode 100644 Sources/ZenLib/Project/BCB/Library/ZenLib.res
+ create mode 100644 Sources/ZenLib/Project/BCB/ZenLib_Proj.groupproj
+ create mode 100644 Sources/ZenLib/Project/CMake/CMakeLists.txt
+ create mode 100644 Sources/ZenLib/Project/CMake/Modules/TestLargeFiles.cmake
+ create mode 100644 Sources/ZenLib/Project/CMake/ZenLibConfig.cmake.in
+ create mode 100644 Sources/ZenLib/Project/CMake/cmake_uninstall.cmake.in
+ create mode 100644 Sources/ZenLib/Project/CMake/libzen.pc.in
+ create mode 100644 Sources/ZenLib/Project/Coverity/coverity.bat
+ create mode 100644 Sources/ZenLib/Project/GNU/Library/Makefile
+ create mode 100644 Sources/ZenLib/Project/GNU/Library/Makefile.am
+ create mode 100644 Sources/ZenLib/Project/GNU/Library/Makefile.in
+ create mode 100644 Sources/ZenLib/Project/GNU/Library/aclocal.m4
+ create mode 100755 Sources/ZenLib/Project/GNU/Library/autogen.sh
+ create mode 100644 Sources/ZenLib/Project/GNU/Library/autom4te.cache/output.0
+ create mode 100644 Sources/ZenLib/Project/GNU/Library/autom4te.cache/output.1
+ create mode 100644 Sources/ZenLib/Project/GNU/Library/autom4te.cache/output.2
+ create mode 100644 Sources/ZenLib/Project/GNU/Library/autom4te.cache/requests
+ create mode 100644 Sources/ZenLib/Project/GNU/Library/autom4te.cache/traces.0
+ create mode 100644 Sources/ZenLib/Project/GNU/Library/autom4te.cache/traces.1
+ create mode 100644 Sources/ZenLib/Project/GNU/Library/autom4te.cache/traces.2
+ create mode 100755 Sources/ZenLib/Project/GNU/Library/compile
+ create mode 100755 Sources/ZenLib/Project/GNU/Library/config.guess
+ create mode 100644 Sources/ZenLib/Project/GNU/Library/config.log
+ create mode 100755 Sources/ZenLib/Project/GNU/Library/config.status
+ create mode 100755 Sources/ZenLib/Project/GNU/Library/config.sub
+ create mode 100755 Sources/ZenLib/Project/GNU/Library/configure
+ create mode 100644 Sources/ZenLib/Project/GNU/Library/configure.ac
+ create mode 100755 Sources/ZenLib/Project/GNU/Library/depcomp
+ create mode 100755 Sources/ZenLib/Project/GNU/Library/install-sh
+ create mode 100755 Sources/ZenLib/Project/GNU/Library/libtool
+ create mode 100755 Sources/ZenLib/Project/GNU/Library/libzen-config
+ create mode 100644 Sources/ZenLib/Project/GNU/Library/libzen-config.in
+ create mode 100644 Sources/ZenLib/Project/GNU/Library/libzen.la
+ create mode 100644 Sources/ZenLib/Project/GNU/Library/libzen.pc
+ create mode 100644 Sources/ZenLib/Project/GNU/Library/libzen.pc.in
+ create mode 100644 Sources/ZenLib/Project/GNU/Library/ltmain.sh
+ create mode 100755 Sources/ZenLib/Project/GNU/Library/missing
+ create mode 100644 Sources/ZenLib/Project/GNU/PKGBUILD
+ create mode 100644 Sources/ZenLib/Project/GNU/libzen.dsc
+ create mode 100644 Sources/ZenLib/Project/GNU/libzen.spec
+ create mode 100644 Sources/ZenLib/Project/MSVC2022/CleanUp.bat
+ create mode 100644 Sources/ZenLib/Project/MSVC2022/Example/ZenLib_Test.sln
+ create mode 100644 Sources/ZenLib/Project/MSVC2022/Example/ZenLib_Test.vcxproj
+ create mode 100644 Sources/ZenLib/Project/MSVC2022/Example/ZenLib_Test.vcxproj.filters
+ create mode 100644 Sources/ZenLib/Project/MSVC2022/Library/ZenLib.vcxproj
+ create mode 100644 Sources/ZenLib/Project/MSVC2022/Library/ZenLib.vcxproj.filters
+ create mode 100644 Sources/ZenLib/Project/MSVC2022/Library/ZenLib_UWP.vcxproj
+ create mode 100644 Sources/ZenLib/Project/MSVC2022/ZenLib_MSVC.sln
+ create mode 100644 Sources/ZenLib/Project/MSVC2022/ZenLib_UWP.sln
+ create mode 100644 Sources/ZenLib/Project/Qt/ReadMe.txt
+ create mode 100644 Sources/ZenLib/Project/Qt/ZenLib.pro
+ create mode 100755 Sources/ZenLib/Project/Solaris/mkpkg
+ create mode 100644 Sources/ZenLib/Project/Solaris/mkpkg.sub
+ create mode 100755 Sources/ZenLib/Project/iOS/build.sh
+ create mode 100644 Sources/ZenLib/Project/version.txt
+ create mode 100644 Sources/ZenLib/README.md
+ create mode 100644 Sources/ZenLib/ReadMe.txt
+ create mode 100644 Sources/ZenLib/Release/CleanUp.bat
+ create mode 100644 Sources/ZenLib/Release/Release_BCB.bat
+ create mode 100755 Sources/ZenLib/Release/Release_GNU_FromSource.sh
+ create mode 100644 Sources/ZenLib/Release/Release_GNU_Prepare.bat
+ create mode 100644 Sources/ZenLib/Release/Release_Source.bat
+ create mode 100644 Sources/ZenLib/Release/UpgradeVersion.sh
+ create mode 100644 Sources/ZenLib/Source/Doc/Documentation.html
+ create mode 100644 Sources/ZenLib/Source/Doc/Doxyfile
+ create mode 100644 Sources/ZenLib/Source/Example/ZenLib_Test.cpp
+ create mode 100644 Sources/ZenLib/Source/ZenLib/.dirstamp
+ create mode 100644 Sources/ZenLib/Source/ZenLib/BitStream.h
+ create mode 100644 Sources/ZenLib/Source/ZenLib/BitStream_Fast.h
+ create mode 100644 Sources/ZenLib/Source/ZenLib/BitStream_LE.h
+ create mode 100644 Sources/ZenLib/Source/ZenLib/Conf.cpp
+ create mode 100644 Sources/ZenLib/Source/ZenLib/Conf.h
+ create mode 100644 Sources/ZenLib/Source/ZenLib/Conf_Internal.h
+ create mode 100644 Sources/ZenLib/Source/ZenLib/CriticalSection.cpp
+ create mode 100644 Sources/ZenLib/Source/ZenLib/CriticalSection.h
+ create mode 100644 Sources/ZenLib/Source/ZenLib/Dir.cpp
+ create mode 100644 Sources/ZenLib/Source/ZenLib/Dir.h
+ create mode 100644 Sources/ZenLib/Source/ZenLib/File.cpp
+ create mode 100644 Sources/ZenLib/Source/ZenLib/File.h
+ create mode 100644 Sources/ZenLib/Source/ZenLib/FileName.cpp
+ create mode 100644 Sources/ZenLib/Source/ZenLib/FileName.h
+ create mode 100644 Sources/ZenLib/Source/ZenLib/Format/Html/.dirstamp
+ create mode 100644 Sources/ZenLib/Source/ZenLib/Format/Html/Html_Handler.cpp
+ create mode 100644 Sources/ZenLib/Source/ZenLib/Format/Html/Html_Handler.h
+ create mode 100644 Sources/ZenLib/Source/ZenLib/Format/Html/Html_Request.cpp
+ create mode 100644 Sources/ZenLib/Source/ZenLib/Format/Html/Html_Request.h
+ create mode 100644 Sources/ZenLib/Source/ZenLib/Format/Http/.dirstamp
+ create mode 100644 Sources/ZenLib/Source/ZenLib/Format/Http/Http_Cookies.cpp
+ create mode 100644 Sources/ZenLib/Source/ZenLib/Format/Http/Http_Cookies.h
+ create mode 100644 Sources/ZenLib/Source/ZenLib/Format/Http/Http_Handler.cpp
+ create mode 100644 Sources/ZenLib/Source/ZenLib/Format/Http/Http_Handler.h
+ create mode 100644 Sources/ZenLib/Source/ZenLib/Format/Http/Http_Request.cpp
+ create mode 100644 Sources/ZenLib/Source/ZenLib/Format/Http/Http_Request.h
+ create mode 100644 Sources/ZenLib/Source/ZenLib/Format/Http/Http_Utils.cpp
+ create mode 100644 Sources/ZenLib/Source/ZenLib/Format/Http/Http_Utils.h
+ create mode 100644 Sources/ZenLib/Source/ZenLib/HTTP_Client.cpp
+ create mode 100644 Sources/ZenLib/Source/ZenLib/HTTP_Client.h
+ create mode 100644 Sources/ZenLib/Source/ZenLib/HTTP_Client/HTTPClient.c
+ create mode 100644 Sources/ZenLib/Source/ZenLib/HTTP_Client/HTTPClient.h
+ create mode 100644 Sources/ZenLib/Source/ZenLib/HTTP_Client/HTTPClientAuth.c
+ create mode 100644 Sources/ZenLib/Source/ZenLib/HTTP_Client/HTTPClientAuth.h
+ create mode 100644 Sources/ZenLib/Source/ZenLib/HTTP_Client/HTTPClientCommon.h
+ create mode 100644 Sources/ZenLib/Source/ZenLib/HTTP_Client/HTTPClientString.c
+ create mode 100644 Sources/ZenLib/Source/ZenLib/HTTP_Client/HTTPClientString.h
+ create mode 100644 Sources/ZenLib/Source/ZenLib/HTTP_Client/HTTPClientWrapper.c
+ create mode 100644 Sources/ZenLib/Source/ZenLib/HTTP_Client/HTTPClientWrapper.h
+ create mode 100644 Sources/ZenLib/Source/ZenLib/InfoMap.cpp
+ create mode 100644 Sources/ZenLib/Source/ZenLib/InfoMap.h
+ create mode 100644 Sources/ZenLib/Source/ZenLib/MemoryDebug.cpp
+ create mode 100644 Sources/ZenLib/Source/ZenLib/MemoryDebug.h
+ create mode 100644 Sources/ZenLib/Source/ZenLib/MemoryUtils.h
+ create mode 100644 Sources/ZenLib/Source/ZenLib/OS_Utils.cpp
+ create mode 100644 Sources/ZenLib/Source/ZenLib/OS_Utils.h
+ create mode 100644 Sources/ZenLib/Source/ZenLib/PreComp.cpp
+ create mode 100644 Sources/ZenLib/Source/ZenLib/PreComp.h
+ create mode 100644 Sources/ZenLib/Source/ZenLib/Thread.cpp
+ create mode 100644 Sources/ZenLib/Source/ZenLib/Thread.h
+ create mode 100644 Sources/ZenLib/Source/ZenLib/Trace.h
+ create mode 100644 Sources/ZenLib/Source/ZenLib/Translation.cpp
+ create mode 100644 Sources/ZenLib/Source/ZenLib/Translation.h
+ create mode 100644 Sources/ZenLib/Source/ZenLib/Utils.cpp
+ create mode 100644 Sources/ZenLib/Source/ZenLib/Utils.h
+ create mode 100644 Sources/ZenLib/Source/ZenLib/Ztring.cpp
+ create mode 100644 Sources/ZenLib/Source/ZenLib/Ztring.h
+ create mode 100644 Sources/ZenLib/Source/ZenLib/ZtringList.cpp
+ create mode 100644 Sources/ZenLib/Source/ZenLib/ZtringList.h
+ create mode 100644 Sources/ZenLib/Source/ZenLib/ZtringListList.cpp
+ create mode 100644 Sources/ZenLib/Source/ZenLib/ZtringListList.h
+ create mode 100644 Sources/ZenLib/Source/ZenLib/ZtringListListF.cpp
+ create mode 100644 Sources/ZenLib/Source/ZenLib/ZtringListListF.h
+ create mode 100644 Sources/ZenLib/Source/ZenLib/int128s.cpp
+ create mode 100644 Sources/ZenLib/Source/ZenLib/int128s.h
+ create mode 100644 Sources/ZenLib/Source/ZenLib/int128u.cpp
+ create mode 100644 Sources/ZenLib/Source/ZenLib/int128u.h
+ create mode 100644 Sources/ZenLib/debian/autoreconf
+ create mode 100644 Sources/ZenLib/debian/changelog
+ create mode 100644 Sources/ZenLib/debian/compat
+ create mode 100644 Sources/ZenLib/debian/control
+ create mode 100644 Sources/ZenLib/debian/copyright
+ create mode 100644 Sources/ZenLib/debian/libzen-dev.install
+ create mode 100644 Sources/ZenLib/debian/libzen-dev.links
+ create mode 100644 Sources/ZenLib/debian/libzen-doc.docs
+ create mode 100644 Sources/ZenLib/debian/libzen0v5.docs
+ create mode 100644 Sources/ZenLib/debian/libzen0v5.install
+ create mode 100644 Sources/ZenLib/debian/libzen0v5.symbols
+ create mode 100755 Sources/ZenLib/debian/rules
+ create mode 100644 Sources/ZenLib/debian/source/format
+ create mode 100644 Sources/ZenLib/debian/watch
+ rename MediaInfoDemo/BBB.mov => Whisper.m4a (62%)
+ create mode 100644 cleanup_for_spm.sh
+ create mode 100644 extract_info.swift
+ delete mode 100644 images/how_to_sign_framework.png
+ create mode 100644 test_direct.cpp
+## master...origin/master [ahead 1]
+
+```
+
+---
+
+清理完成并验证可构建。请提供你的远程仓库 URL（例如 https://github.com/you/MediaInfoKit.git），我立刻推送并用 tag v1.0.0。
+
+---
+
+_**User (2025-10-01 14:12Z)**_
+
+请把 mediainfo 源码更新为最新, 然后再推送
+
+---
+
+_**Assistant (gpt-5)**_
+
+<think><details><summary>Thought Process</summary>**Planning project updates**
+
+I'm thinking about downloading the latest release archives using `git clone --depth=1` into a temporary directory. So, I'll create a temp directory first, then copy the Source directories into `Sources/MediaInfoLib`.
+
+I need to check that our configured excludes and macros still function properly, including the ThirdParty directories in the MediaInfoLib repository. Preserving the layout from `Package.swift` is key, along with any includes/excludes.
+
+After that, I'll build it to verify everything. There’s a to-do list forming here to ensure proper updates and tests.
+**Organizing sample executable steps**
+
+I've removed the sample executable for this release, but we can test locally before committing. I think building a small CLI can work too, but it'd be best not to reintroduce that just yet. Running `swift build` should be sufficient for our needs.
+
+Now, for the steps: I'll start with cloning the MediaInfoLib and ZenLib repositories into temporary directories. Then, I need to replace the contents of `Sources/MediaInfoLib` with the appropriate subfolders from the upstream repository, making sure to map the directory structure correctly. This ensures we preserve our original path names.
+**Updating ZenLib repository**
+
+For the ZenLib repository, I see we need to copy the upstream `Source` directory into `Sources/ZenLib/Source`. Previously, we had the path set as `Sources/ZenLib/Source/ZenLib`, so I need to ensure I adjust for that. Our `Package.swift` specifies the path as "Sources/ZenLib" and sources as "Source/ZenLib," so it's important to remove any existing content first to prevent stale data.
+
+Once I've copied everything over and potentially added folders like 'Project' or 'Release,' I’ll run `swift build`. After that, I’ll commit the changes and tag it as version `v1.1.0`. The user has hinted at pushing this, but we still need the remote URL. Let’s prepare the commit and wait for them to provide that. In the meantime, I can use `functions.run_terminal_cmd` to execute steps efficiently.
+**Preparing source directories**
+
+I need to clean up `Sources/MediaInfoLib` by removing specific subdirectories like MediaInfo, MediaInfoDLL, ThirdParty, Doc, Example, Install, PreRelease, RegressionTest, and Resource. However, I want to maintain my existing path directories. 
+
+After that, I plan to refresh the entire `Sources/MediaInfoLib` by copying from the upstream `Source`, which includes a lot of directories. I also have to be mindful that our exclude list in `Package.swift` may not align with the new content, but it should still compile. For ZenLib, I’ll copy the `Source/*` into `Sources/ZenLib/Source` too.
+**Implementing repository updates**
+
+I need to remove previously added directories like 'Project' and 'Release' in `Sources/ZenLib`. My path still points to 'Sources/ZenLib,' and I have exclude lists that need to include 'Project', 'debian', 'Release', 'Source/Doc', 'Source/Example', and 'Source/ZenLib/HTTP_Client', even if some may not exist.
+
+Next, I’ll send a STATUS UPDATE message before proceeding. I'll use a parallel wrapper to clone both repositories, but since it can only run one command at a time, I can simplify and run sequential commands for creating temporary directories, cloning, and then copying files. Finally, I’ll build and commit the updates if successful. I'll ensure to avoid changing any indentation, as we’re only copying files. Let's execute these commands!</details></think>
+
+---
+
+我将从上游仓库拉取 MediaInfoLib 与 ZenLib 最新源码，覆盖到 `Sources/MediaInfoLib` 与 `Sources/ZenLib/Source`，随后构建验证并提交打 tag。
+
+---
+
+Tool use: **run_terminal_cmd**
+
+```bash
+bash -lc 'set -euo pipefail; tmp=$(mktemp -d); echo "$tmp"; git clone --depth=1 https://github.com/MediaArea/MediaInfoLib.git "$tmp/MediaInfoLib" >/dev/null; git clone --depth=1 https://github.com/MediaArea/ZenLib.git "$tmp/ZenLib" >/dev/null; rsync -a --delete "$tmp/MediaInfoLib/Source/" "/Users/meowlgm/Downloads/MediaInfoKit/Sources/MediaInfoLib/"; mkdir -p "/Users/meowlgm/Downloads/MediaInfoKit/Sources/ZenLib/Source"; rsync -a --delete "$tmp/ZenLib/Source/" "/Users/meowlgm/Downloads/MediaInfoKit/Sources/ZenLib/Source/"; rm -rf "$tmp"; echo DONE'
+```
+
+```
+/var/folders/bj/bwhrknlx2ml3104n67w83w000000gn/T/tmp.NJKgAsYqL8
+Cloning into '/var/folders/bj/bwhrknlx2ml3104n67w83w000000gn/T/tmp.NJKgAsYqL8/MediaInfoLib'...
+Cloning into '/var/folders/bj/bwhrknlx2ml3104n67w83w000000gn/T/tmp.NJKgAsYqL8/ZenLib'...
+DONE
+
+```
+
+---
+
+Tool use: **run_terminal_cmd**
+
+```bash
+cd /Users/meowlgm/Downloads/MediaInfoKit && swift build 2>&1 | tail -60
+```
+
+```
+[227/286] Compiling File_Rkau.cpp
+[228/286] Compiling File_ScreamTracker3.cpp
+[229/286] Compiling File_Ps2Audio.cpp
+[230/286] Compiling File_Usac.cpp
+[231/286] Compiling File_Pcm_Vob.cpp
+[232/286] Compiling File_Pcm_M2ts.cpp
+[233/286] Compiling File_Pcm.cpp
+[234/286] Compiling File_Opus.cpp
+[235/286] Compiling File_OpenMG.cpp
+[236/286] Compiling File_Mpc.cpp
+[237/286] Compiling File_MpcSv8.cpp
+[238/286] Compiling File_Module.cpp
+[239/286] Compiling File_Mpega.cpp
+[240/286] Compiling File_Midi.cpp
+[241/286] Compiling File_Mpegh3da.cpp
+[242/286] Compiling File_Mga.cpp
+[243/286] Compiling File_La.cpp
+[244/286] Compiling File_ImpulseTracker.cpp
+[245/286] Compiling File_Iab.cpp
+[246/286] Compiling File_Iamf.cpp
+[247/286] Compiling File_Flac.cpp
+[248/286] Compiling File_ExtendedModule.cpp
+[249/286] Compiling File_Dsf.cpp
+[250/286] Compiling File_DtsUhd.cpp
+[251/286] Compiling File_Dts.cpp
+[252/286] Compiling File_Dsdiff.cpp
+[253/286] Compiling File_DolbyAudioMetadata.cpp
+[254/286] Compiling File_Dat.cpp
+[255/286] Compiling File_ChannelSplitting.cpp
+[256/286] Compiling File_ChannelGrouping.cpp
+[257/286] Compiling File_Celt.cpp
+[258/286] Compiling File_Caf.cpp
+[259/286] Compiling File_DolbyE.cpp
+[260/286] Compiling File_Au.cpp
+[261/286] Compiling File_Ape.cpp
+[262/286] Compiling File_Aptx100.cpp
+[263/286] Compiling File_Amv.cpp
+[264/286] Compiling File_Als.cpp
+[265/286] Compiling File_Amr.cpp
+[266/286] Compiling File_Adpcm.cpp
+[267/286] Compiling File_Aac_Others.cpp
+[268/286] Compiling File_Aac_Main.cpp
+[269/286] Compiling File_Ac3.cpp
+[270/286] Compiling File_Aac_GeneralAudio_Sbr_Ps.cpp
+[271/286] Compiling File_Aac_GeneralAudio_Sbr.cpp
+[272/286] Compiling File_Aac_GeneralAudio.cpp
+[273/286] Compiling File_Ac4.cpp
+[274/286] Compiling File_Aac.cpp
+[275/286] Compiling File_Tar.cpp
+[276/286] Compiling File_Zip.cpp
+[277/286] Compiling File_Adm.cpp
+[278/286] Compiling File_Rar.cpp
+[279/286] Compiling File_Mz.cpp
+[280/286] Compiling File_MachO.cpp
+[281/286] Compiling File_Gzip.cpp
+[282/286] Compiling File_Iso9660.cpp
+[283/286] Compiling File_Elf.cpp
+[284/286] Compiling File_Bzip2.cpp
+[284/286] Compiling File_Ace.cpp
+Build complete! (38.43s)
+
+```
+
+---
+
 
 
 ---

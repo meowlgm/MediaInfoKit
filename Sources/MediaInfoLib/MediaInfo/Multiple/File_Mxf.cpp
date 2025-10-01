@@ -516,6 +516,18 @@ static const char* Mxf_EssenceCompression(const int128u EssenceCompression)
                                                                     {
                                                                         case 0x01 : //Uncompressed picture coding
                                                                                     return "YUV";
+                                                                        case 0x02 :
+                                                                                    switch (Code6)
+                                                                                    {
+                                                                                        case 0x01 :
+                                                                                                    switch (Code7)
+                                                                                                    {
+                                                                                                        case 0x01 : return "ARRIRAW";
+                                                                                                        case 0x02 : return "ARRIRAW HDE";
+                                                                                                        default   : return "";
+                                                                                                    }
+                                                                                        default   : return "";
+                                                                                    }
                                                                         default   : return "";
                                                                     }
                                                         case 0x02 : //Compressed coding
@@ -1935,6 +1947,8 @@ File_Mxf::File_Mxf()
     StereoscopicPictureSubDescriptor_IsPresent=false;
     UserDefinedAcquisitionMetadata_UdamSetIdentifier_IsSony=false;
     Essences_UsedForFrameCount=(int32u)-1;
+    IndexTable_NSL=0;
+    IndexTable_NPE=0;
     #if MEDIAINFO_ADVANCED
         Footer_Position=(int64u)-1;
     #endif //MEDIAINFO_ADVANCED
@@ -2628,6 +2642,8 @@ void File_Mxf::Streams_Finish_Track_ForAS11(const int128u TrackUID)
 void File_Mxf::Streams_Finish_Essence(int32u EssenceUID, int128u TrackUID)
 {
     essences::iterator Essence=Essences.find(EssenceUID);
+    if (Essence==Essences.end() && IsArriExperimental && (EssenceUID&0xFF00FF00)==0x15000500)
+        Essence=Essences.find(EssenceUID-0x14000400);
     if (Essence==Essences.end() || Essence->second.Stream_Finish_Done)
         return;
 
@@ -3204,6 +3220,13 @@ void File_Mxf::Streams_Finish_Descriptor(const int128u DescriptorUID, const int1
                 break;
             }
         }
+    }
+    if (IsArriExperimental && StreamKind_Last==Stream_Video)
+    {
+        if (StreamPos_Last==(size_t)-1)
+            StreamPos_Last=0;
+        if (Retrieve_Const(StreamKind_Last, StreamPos_Last, General_ID).empty() && Descriptor->second.LinkedTrackID!=(int32u)-1)
+            Fill(StreamKind_Last, StreamPos_Last, General_ID, Descriptor->second.LinkedTrackID);
     }
     if (StreamPos_Last==(size_t)-1)
     {
@@ -6709,6 +6732,9 @@ void File_Mxf::Data_Parse()
         Element_WaitForMoreData();
         return;
     }
+    if (IsArriExperimental && Code.lo == 0x0F01010101010100LL) {
+        Code.lo = Groups::PictureDescriptor;
+    }
     if (false) {}
     GROUP(LensUnitAcquisitionMetadata)
     GROUP(CameraUnitAcquisitionMetadata)
@@ -9755,9 +9781,11 @@ void File_Mxf::PictureDescriptor_PictureEssenceCoding()
     FILLING_BEGIN();
         Descriptors[InstanceUID].EssenceCompression=Data;
         Descriptors[InstanceUID].StreamKind=Stream_Video;
+        if (!IsArriExperimental) {
         Descriptor_Fill("Format", Mxf_EssenceCompression(Data));
         Descriptor_Fill("Format_Version", Mxf_EssenceCompression_Version(Data));
         Descriptor_Fill("Format_Profile", Mxf_EssenceCompression_Profile(Data));
+        }
     FILLING_END();
 }
 
@@ -10321,6 +10349,9 @@ void File_Mxf::Identification_ProductName()
 
     FILLING_BEGIN();
         Identifications[InstanceUID].ProductName=Data;
+        if (Data == __T("ALEXA Mini")) {
+            IsArriExperimental = true;
+        }
     FILLING_END();
 }
 
@@ -11478,8 +11509,10 @@ void File_Mxf::PartitionMetadata()
     {
         switch ((Code.lo>>8)&0xFF)
         {
-            case 0x02 :
-            case 0x04 :
+            case 0x02 : Fill(Stream_General, 0, General_Format_Settings, "Closed / Incomplete", Unlimited, true, true);
+                        Config->File_IsGrowing=false;
+                        break;
+            case 0x04 : Fill(Stream_General, 0, General_Format_Settings, "Closed / Complete"  , Unlimited, true, true);
                         Config->File_IsGrowing=false;
                         break;
             default   : ;
@@ -14381,6 +14414,12 @@ void File_Mxf::ChooseParser__FromCodingScheme(const essences::iterator &Essence,
     if (Config->ParseSpeed<0)
         return;
 
+    if (IsArriExperimental) {
+        if ((Code.lo & 0xFFFFFFFFFF0FF000) == 0x0401020102010000) {
+            return ChooseParser_ArriRaw(Essence, Descriptor);
+        }
+    }
+
     if ((Descriptor->second.EssenceCompression.hi&0xFFFFFFFFFFFFFF00LL)!=0x060E2B3404010100LL || (Descriptor->second.EssenceCompression.lo&0xFF00000000000000LL)!=0x0400000000000000LL)
         return ChooseParser__FromEssenceContainer (Essence, Descriptor);
 
@@ -14616,6 +14655,13 @@ void File_Mxf::ChooseParser__FromEssenceContainer(const essences::iterator &Esse
 //---------------------------------------------------------------------------
 void File_Mxf::ChooseParser__FromEssence(const essences::iterator &Essence, const descriptors::iterator &Descriptor)
 {
+    if (IsArriExperimental) {
+        if ((Code.lo & 0xFFFFFFFFFF00FF00) == 0x0F01030101000100) {
+            ChooseParser_ArriRaw(Essence, Descriptor);
+            return;
+        }
+    }
+
     if (Config->ParseSpeed<0)
         return;
 
@@ -14639,6 +14685,7 @@ void File_Mxf::ChooseParser__FromEssence(const essences::iterator &Essence, cons
     case Essences::VC3_Frame:
     case Essences::VC3_Clip: ChooseParser_Vc3(Essence, Descriptor); break;
     case Essences::ProRes: ChooseParser_ProRes(Essence, Descriptor); break;
+    case Essences::ARRIRAW_Frame: ChooseParser_ArriRaw(Essence, Descriptor); break;
     case Essences::FFV1_Frame:
     case Essences::FFV1_Clip: ChooseParser_Ffv1(Essence, Descriptor); break;
     case Essences::PCM1:
@@ -15259,6 +15306,27 @@ void File_Mxf::ChooseParser_ProRes(const essences::iterator &Essence, const desc
         Parser->Fill(Stream_Video, 0, Video_Format, "ProRes");
     #endif
     Essence->second.Parsers.push_back(Parser);
+}
+
+//---------------------------------------------------------------------------
+void File_Mxf::ChooseParser_ArriRaw(const essences::iterator &Essence, const descriptors::iterator &Descriptor)
+{
+    Essence->second.StreamKind=Stream_Video;
+
+    //Filling
+    #if 1
+        File__Analyze* Parser=new File_Unknown();
+        Open_Buffer_Init(Parser);
+        Parser->Accept();
+        Parser->Stream_Prepare(Stream_Video);
+        Parser->Fill(Stream_Video, 0, Video_Format, "ARRIRAW");
+        if (Descriptor != Descriptors.end()) {
+            if ((Descriptor->second.EssenceCompression.lo >> 8) == 0x04010201020102) {
+                Parser->Fill(Stream_Video, 0, Video_Format, "ARRIRAW HDE", Unlimited, true, true);
+            }
+        }
+        Essence->second.Parsers.push_back(Parser);
+    #endif
 }
 
 //---------------------------------------------------------------------------
