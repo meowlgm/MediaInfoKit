@@ -23,6 +23,7 @@ MIGRATION_GUIDE.md
 
 # Dev tooling
 .cursor/
+.vscode/
 
 # Local helper scripts/tools
 cleanup_for_spm.sh
