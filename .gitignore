@@ -11,3 +11,15 @@ xcuserdata/
  
 # Media samples
 Whisper.m4a
+
+# Docs and dev notes
+PROJECT_ENHANCEMENTS.md
+README_CN.md
+SOLUTION_SUMMARY.md
+SPM_USAGE.md
+test_direct.cpp
+PATCH_NOTES.md
+MIGRATION_GUIDE.md
+
+# Dev tooling
+.cursor/
