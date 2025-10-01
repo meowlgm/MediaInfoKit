@@ -8,3 +8,6 @@ xcuserdata/
 *.swp
 *.swo
 .specstory/
+ 
+# Media samples
+Whisper.m4a
