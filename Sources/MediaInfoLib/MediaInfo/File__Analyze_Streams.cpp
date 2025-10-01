@@ -3516,9 +3516,10 @@ void File__Analyze::Duration_Duration123(stream_t StreamKind, size_t StreamPos, 
             DurationString3=Ztring(__T("-"))+DurationString3;
         }
 
-        Fill(StreamKind, StreamPos, Parameter+1, DurationString2); // /String
-        Fill(StreamKind, StreamPos, Parameter+2, DurationString1); // /String1
-        Fill(StreamKind, StreamPos, Parameter+3, DurationString2); // /String2
+        // Restore long/full/short mapping: /String=long, /String1=full, /String2=short
+        Fill(StreamKind, StreamPos, Parameter+1, DurationString1); // /String (long)
+        Fill(StreamKind, StreamPos, Parameter+2, DurationString1); // /String1 (full)
+        Fill(StreamKind, StreamPos, Parameter+3, DurationString2); // /String2 (short)
         Fill(StreamKind, StreamPos, Parameter+4, DurationString3); // /String3
 
         if (HH<=0xFF && Retrieve_Const(StreamKind, StreamPos, Parameter+6, Info_Name)==Retrieve_Const(StreamKind, StreamPos, Parameter, Info_Name)+__T("/String5"))
