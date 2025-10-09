@@ -1,4 +1,4 @@
-// swift-tools-version: 5.9
+// swift-tools-version: 5.7
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
@@ -107,6 +107,8 @@ let package = Package(
                 .define("MEDIAINFO_LIBCURL_NO"),
                 .define("MEDIAINFO_LIBMMS_NO"),
                 .define("MEDIAINFO_JNI_NO"),
+                // 禁用模块导入嵌套冗余警告（兼容Swift 5.7）
+                .unsafeFlags(["-Wno-modules-import-nested-redundant"]),
             ],
             linkerSettings: [
                 .linkedLibrary("z"),
