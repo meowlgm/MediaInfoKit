@@ -1,6 +1,4 @@
 // swift-tools-version: 5.9
-// The swift-tools-version declares the minimum version of Swift required to build this package.
-
 import PackageDescription
 
 let package = Package(
@@ -9,14 +7,16 @@ let package = Package(
         .macOS(.v10_13)
     ],
     products: [
-        // Main product - MediaInfoKit framework
         .library(
             name: "MediaInfoKit",
             targets: ["MediaInfoKit"]
         ),
+        .executable(
+            name: "TestRawDuration",
+            targets: ["TestRawDuration"]
+        ),
     ],
     targets: [
-        // ZenLib - MediaInfo dependency
         .target(
             name: "ZenLib",
             path: "Sources/ZenLib",
@@ -27,7 +27,7 @@ let package = Package(
                 "Source/Doc",
                 "Source/Example",
                 "Source/ZenLib/HTTP_Client",
-                "Source/ZenLib/HTTP_Client.cpp",  // HTTP 客户端（需要额外的系统库）
+                "Source/ZenLib/HTTP_Client.cpp",
             ],
             sources: [
                 "Source/ZenLib"
@@ -44,7 +44,6 @@ let package = Package(
             ]
         ),
 
-        // MediaInfoLib - Core C++ library
         .target(
             name: "MediaInfoLib",
             dependencies: ["ZenLib"],
@@ -58,10 +57,9 @@ let package = Package(
                 "Resource",
                 "MediaInfo/Reader/Reader_libmms.cpp",
                 "MediaInfo/Reader/Reader_libcurl.cpp",
-                "MediaInfo/Export/Export_Graph.cpp",  // 需要 Graphviz
+                "MediaInfo/Export/Export_Graph.cpp",
                 "MediaInfo/Export/Export_Graph.h",
                 "MediaInfo/Export/Export_Graph_gvc_Include.h",
-                // ThirdParty 测试和工具文件
                 "ThirdParty/aes-gladman/aesxam.c",
                 "ThirdParty/aes-gladman/tablegen.c",
                 "ThirdParty/aes-gladman/aes.txt",
@@ -101,7 +99,6 @@ let package = Package(
                 .headerSearchPath("../ZenLib/Source"),
                 .define("UNICODE"),
                 .define("_UNICODE"),
-                // 明确关闭不需要的功能
                 .define("MEDIAINFO_GRAPH_NO"),
                 .define("MEDIAINFO_GRAPHVIZ_NO"),
                 .define("MEDIAINFO_LIBCURL_NO"),
@@ -114,7 +111,6 @@ let package = Package(
             ]
         ),
 
-        // MediaInfoKit - Objective-C++ wrapper
         .target(
             name: "MediaInfoKit",
             dependencies: ["MediaInfoLib"],
@@ -137,7 +133,14 @@ let package = Package(
             ]
         ),
 
-        // (no sample executable or tests in release package)
+        .executableTarget(
+            name: "TestRawDuration",
+            dependencies: ["MediaInfoKit"],
+            path: "Sources/TestRawDuration",
+            linkerSettings: [
+                .linkedFramework("Foundation")
+            ]
+        ),
     ],
     cxxLanguageStandard: .cxx11
 )

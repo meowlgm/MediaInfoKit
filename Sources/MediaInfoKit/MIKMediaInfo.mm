@@ -11,7 +11,6 @@
 #import "MIKMediaInfo.h"
 #import "NSString+MIK.h"
 
-#define _UNICODE
 #import "MediaInfoDLL_Static.h"
 
 static const NSInteger paddingLenth = 30;
@@ -26,6 +25,8 @@ static const NSInteger paddingLenth = 30;
 @property(readwrite, strong) NSMutableArray *streamNames;
 @property(readwrite, strong) NSMutableDictionary *streamsOrder;
 @property(readwrite, strong) NSMutableDictionary *streamsInfo;
+@property(readwrite, strong) NSURL *fileURL;
+@property(readwrite, assign) void *mediaInfoHandle; // MediaInfoDLL::MediaInfo*
 
 @end
 
@@ -40,6 +41,7 @@ static const NSInteger paddingLenth = 30;
 - (nullable instancetype)initWithFileURL:(NSURL *)fileURL {
   self = [super init];
   if (self) {
+    self.fileURL = fileURL;
     MediaInfoDLL::MediaInfo *mi = new MediaInfoDLL::MediaInfo();
     mi->Option([@"setlocale_LC_CTYPE" mik_WCHARString],
                [@"UTF-8" mik_WCHARString]);
@@ -51,15 +53,30 @@ static const NSInteger paddingLenth = 30;
       delete mi;
       self = nil;
     } else {
+      // Store the MediaInfo handle for raw value queries
+      self.mediaInfoHandle = mi;
+
+      // Parse formatted text for existing API compatibility
       std::basic_string<MediaInfoDLL::Char> rawInfo = mi->Inform();
       NSString *streamInfo =
           [[NSString alloc] mik_initWithWCHAR:rawInfo.c_str()];
       [self parseStreamInfo:streamInfo];
-      mi->Close();
-      delete mi;
+
+      // Note: We keep the file open and mi object alive for raw value queries
+      // It will be closed and deleted in dealloc
     }
   }
   return self;
+}
+
+- (void)dealloc {
+  if (self.mediaInfoHandle) {
+    MediaInfoDLL::MediaInfo *mi =
+        (MediaInfoDLL::MediaInfo *)self.mediaInfoHandle;
+    mi->Close();
+    delete mi;
+    self.mediaInfoHandle = nullptr;
+  }
 }
 
 - (void)parseStreamInfo:(NSString *)info {
@@ -429,6 +446,67 @@ static const NSInteger paddingLenth = 30;
 + (void)setLanguageWithContents:(NSString *)langContents {
   MediaInfoDLL::MediaInfo::Option_Static([@"Language" mik_WCHARString],
                                          [langContents mik_WCHARString]);
+}
+
+#pragma mark Raw Values
+
+- (nullable NSString *)getRawValue:(NSString *)valueKey
+                      forStreamKey:(NSString *)streamKey {
+  if (!self.mediaInfoHandle) {
+    NSLog(@"MediaInfo handle is not available");
+    return nil;
+  }
+
+  MediaInfoDLL::MediaInfo *mi = (MediaInfoDLL::MediaInfo *)self.mediaInfoHandle;
+
+  // Map stream key to MediaInfo stream kind
+  MediaInfoDLL::stream_t streamKind = MediaInfoDLL::Stream_Max;
+  if ([streamKey isEqualToString:@"General"]) {
+    streamKind = MediaInfoDLL::Stream_General;
+  } else if ([streamKey isEqualToString:@"Video"] ||
+             [streamKey hasPrefix:@"Video"]) {
+    streamKind = MediaInfoDLL::Stream_Video;
+  } else if ([streamKey isEqualToString:@"Audio"] ||
+             [streamKey hasPrefix:@"Audio"]) {
+    streamKind = MediaInfoDLL::Stream_Audio;
+  } else if ([streamKey isEqualToString:@"Text"] ||
+             [streamKey hasPrefix:@"Text"]) {
+    streamKind = MediaInfoDLL::Stream_Text;
+  } else if ([streamKey isEqualToString:@"Other"]) {
+    streamKind = MediaInfoDLL::Stream_Other;
+  } else if ([streamKey isEqualToString:@"Image"]) {
+    streamKind = MediaInfoDLL::Stream_Image;
+  } else if ([streamKey isEqualToString:@"Menu"]) {
+    streamKind = MediaInfoDLL::Stream_Menu;
+  }
+
+  if (streamKind == MediaInfoDLL::Stream_Max) {
+    NSLog(@"Unknown stream key: %@", streamKey);
+    return nil;
+  }
+
+  // Get raw value (Info_Text returns the raw value, not formatted)
+  std::basic_string<MediaInfoDLL::Char> rawValue = mi->Get(
+      streamKind, 0, [valueKey mik_WCHARString], MediaInfoDLL::Info_Text);
+
+  if (rawValue.empty()) {
+    return nil;
+  }
+
+  return [[NSString alloc] mik_initWithWCHAR:rawValue.c_str()];
+}
+
+- (nullable NSNumber *)getDurationInMilliseconds:(NSString *)streamKey {
+  NSString *durationString = [self getRawValue:@"Duration"
+                                  forStreamKey:streamKey];
+
+  if (!durationString) {
+    return nil;
+  }
+
+  // Duration is returned in milliseconds as a string
+  long long durationMs = [durationString longLongValue];
+  return @(durationMs);
 }
 
 @end
