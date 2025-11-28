@@ -496,6 +496,155 @@ static const NSInteger paddingLenth = 30;
   return [[NSString alloc] mik_initWithWCHAR:rawValue.c_str()];
 }
 
+- (nullable NSString *)getFormattedValue:(NSString *)valueKey
+                            forStreamKey:(NSString *)streamKey {
+  if (!self.mediaInfoHandle) {
+    NSLog(@"MediaInfo handle is not available");
+    return nil;
+  }
+
+  MediaInfoDLL::MediaInfo *mi = (MediaInfoDLL::MediaInfo *)self.mediaInfoHandle;
+
+  // Map stream key to MediaInfo stream kind
+  MediaInfoDLL::stream_t streamKind = MediaInfoDLL::Stream_Max;
+  if ([streamKey isEqualToString:@"General"]) {
+    streamKind = MediaInfoDLL::Stream_General;
+  } else if ([streamKey isEqualToString:@"Video"] ||
+             [streamKey hasPrefix:@"Video"]) {
+    streamKind = MediaInfoDLL::Stream_Video;
+  } else if ([streamKey isEqualToString:@"Audio"] ||
+             [streamKey hasPrefix:@"Audio"]) {
+    streamKind = MediaInfoDLL::Stream_Audio;
+  } else if ([streamKey isEqualToString:@"Text"] ||
+             [streamKey hasPrefix:@"Text"]) {
+    streamKind = MediaInfoDLL::Stream_Text;
+  } else if ([streamKey isEqualToString:@"Other"]) {
+    streamKind = MediaInfoDLL::Stream_Other;
+  } else if ([streamKey isEqualToString:@"Image"]) {
+    streamKind = MediaInfoDLL::Stream_Image;
+  } else if ([streamKey isEqualToString:@"Menu"]) {
+    streamKind = MediaInfoDLL::Stream_Menu;
+  }
+
+  if (streamKind == MediaInfoDLL::Stream_Max) {
+    NSLog(@"Unknown stream key: %@", streamKey);
+    return nil;
+  }
+
+  // Append "/String" to get formatted value
+  NSString *formattedKey = [valueKey stringByAppendingString:@"/String"];
+
+  // Get formatted value
+  std::basic_string<MediaInfoDLL::Char> formattedValue = mi->Get(
+      streamKind, 0, [formattedKey mik_WCHARString], MediaInfoDLL::Info_Text);
+
+  if (formattedValue.empty()) {
+    return nil;
+  }
+
+  return [[NSString alloc] mik_initWithWCHAR:formattedValue.c_str()];
+}
+
+- (NSDictionary<NSString *, NSDictionary<NSString *, NSString *> *> *)
+       getValues:(NSArray<NSString *> *)keys
+    forStreamKey:(NSString *)streamKey {
+  if (!self.mediaInfoHandle) {
+    NSLog(@"MediaInfo handle is not available");
+    return @{};
+  }
+
+  if (keys.count == 0) {
+    return @{};
+  }
+
+  MediaInfoDLL::MediaInfo *mi = (MediaInfoDLL::MediaInfo *)self.mediaInfoHandle;
+
+  // Map stream key to MediaInfo stream kind
+  MediaInfoDLL::stream_t streamKind = MediaInfoDLL::Stream_Max;
+  if ([streamKey isEqualToString:@"General"]) {
+    streamKind = MediaInfoDLL::Stream_General;
+  } else if ([streamKey isEqualToString:@"Video"] ||
+             [streamKey hasPrefix:@"Video"]) {
+    streamKind = MediaInfoDLL::Stream_Video;
+  } else if ([streamKey isEqualToString:@"Audio"] ||
+             [streamKey hasPrefix:@"Audio"]) {
+    streamKind = MediaInfoDLL::Stream_Audio;
+  } else if ([streamKey isEqualToString:@"Text"] ||
+             [streamKey hasPrefix:@"Text"]) {
+    streamKind = MediaInfoDLL::Stream_Text;
+  } else if ([streamKey isEqualToString:@"Other"]) {
+    streamKind = MediaInfoDLL::Stream_Other;
+  } else if ([streamKey isEqualToString:@"Image"]) {
+    streamKind = MediaInfoDLL::Stream_Image;
+  } else if ([streamKey isEqualToString:@"Menu"]) {
+    streamKind = MediaInfoDLL::Stream_Menu;
+  }
+
+  if (streamKind == MediaInfoDLL::Stream_Max) {
+    NSLog(@"Unknown stream key: %@", streamKey);
+    return @{};
+  }
+
+  NSMutableDictionary *result =
+      [NSMutableDictionary dictionaryWithCapacity:keys.count];
+
+  for (NSString *key in keys) {
+    NSMutableDictionary *valuePair =
+        [NSMutableDictionary dictionaryWithCapacity:2];
+
+    // Get raw value
+    std::basic_string<MediaInfoDLL::Char> rawValue =
+        mi->Get(streamKind, 0, [key mik_WCHARString], MediaInfoDLL::Info_Text);
+
+    if (!rawValue.empty()) {
+      valuePair[@"raw"] = [[NSString alloc] mik_initWithWCHAR:rawValue.c_str()];
+    }
+
+    // Get formatted value
+    NSString *formattedKey = [key stringByAppendingString:@"/String"];
+    std::basic_string<MediaInfoDLL::Char> formattedValue = mi->Get(
+        streamKind, 0, [formattedKey mik_WCHARString], MediaInfoDLL::Info_Text);
+
+    if (!formattedValue.empty()) {
+      valuePair[@"formatted"] =
+          [[NSString alloc] mik_initWithWCHAR:formattedValue.c_str()];
+    }
+
+    // Only add to result if we got at least one value
+    if (valuePair.count > 0) {
+      result[key] = valuePair;
+    }
+  }
+
+  return result;
+}
+
+- (NSDictionary<
+    NSString *,
+    NSDictionary<NSString *, NSDictionary<NSString *, NSString *> *> *> *)
+    getAllValues:(NSDictionary<NSString *, NSArray<NSString *> *> *)keysDict {
+
+  if (keysDict.count == 0) {
+    return @{};
+  }
+
+  NSMutableDictionary *result =
+      [NSMutableDictionary dictionaryWithCapacity:keysDict.count];
+
+  // Iterate through each stream and get its values
+  for (NSString *streamKey in keysDict) {
+    NSArray<NSString *> *keys = keysDict[streamKey];
+    if (keys.count > 0) {
+      NSDictionary *streamValues = [self getValues:keys forStreamKey:streamKey];
+      if (streamValues.count > 0) {
+        result[streamKey] = streamValues;
+      }
+    }
+  }
+
+  return result;
+}
+
 - (nullable NSNumber *)getDurationInMilliseconds:(NSString *)streamKey {
   NSString *durationString = [self getRawValue:@"Duration"
                                   forStreamKey:streamKey];

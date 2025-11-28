@@ -20,6 +20,8 @@ SPM_USAGE.md
 test_direct.cpp
 PATCH_NOTES.md
 MIGRATION_GUIDE.md
+IMPLEMENTATION_SUMMARY.md
+RAW_VALUE_API_GUIDE.md
 
 # Dev tooling
 .cursor/

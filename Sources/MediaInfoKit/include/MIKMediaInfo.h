@@ -79,6 +79,57 @@ NS_ASSUME_NONNULL_BEGIN
                       forStreamKey:(NSString *)streamKey;
 
 /**
+ *  Returns the formatted/descriptive value directly from MediaInfo library for
+ * the given key and stream key. This method queries the MediaInfo library
+ * directly for formatted text values (e.g., Duration as "4 min 3 s" instead of
+ * "243382").
+ *
+ *  @param valueKey  The key of the value (e.g., "Duration", "BitRate").
+ *  @param streamKey The key of the stream.
+ *
+ *  @return A string containing the formatted descriptive value or nil if the
+ * key or stream doesn't exist.
+ */
+- (nullable NSString *)getFormattedValue:(NSString *)valueKey
+                            forStreamKey:(NSString *)streamKey;
+
+/**
+ *  Retrieves multiple values at once, returning both raw and formatted values.
+ *  This method is optimized for batch queries, reducing multiple API calls.
+ *
+ *  @param keys      Array of value keys to retrieve (e.g., @[@"Duration",
+ * @"BitRate", @"Width"]).
+ *  @param streamKey The key of the stream.
+ *
+ *  @return Dictionary where each key maps to a nested dictionary containing
+ * "raw" and "formatted" values. Example: @{@"Duration": @{@"raw": @"6947264",
+ * @"formatted": @"1 h 55 min 47 s"}}
+ */
+- (NSDictionary<NSString *, NSDictionary<NSString *, NSString *> *> *)
+       getValues:(NSArray<NSString *> *)keys
+    forStreamKey:(NSString *)streamKey;
+
+/**
+ *  Retrieves multiple values from multiple streams at once, returning both raw
+ * and formatted values. This is the most efficient method for batch queries
+ * across different streams.
+ *
+ *  @param keysDict Dictionary mapping stream keys to arrays of value keys.
+ *                  Example: @{@"General": @[@"Duration", @"BitRate"], @"Video":
+ * @[@"Width", @"Height"]}
+ *
+ *  @return Nested dictionary with structure: streamKey -> valueKey -> {raw,
+ * formatted} Example: @{@"General": @{@"Duration": @{@"raw": @"6947264",
+ * @"formatted": @"1 h 55 min"}},
+ *                     @"Video": @{@"Width": @{@"raw": @"1920", @"formatted":
+ * @"1 920 pixels"}}}
+ */
+- (NSDictionary<
+    NSString *,
+    NSDictionary<NSString *, NSDictionary<NSString *, NSString *> *> *> *)
+    getAllValues:(NSDictionary<NSString *, NSArray<NSString *> *> *)keysDict;
+
+/**
  *  Returns the duration in milliseconds for the given stream key.
  *  This is a convenience method that queries the MediaInfo library directly for
  * raw duration value.
