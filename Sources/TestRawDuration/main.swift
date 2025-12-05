@@ -113,7 +113,7 @@ struct TestRawDuration {
     
     /// 测试 enumerateOrderedValues API - 读取 WAV 文件信息
     static func testEnumerateOrderedValues() {
-        let wavFile = "/Users/meowlgm/Documents/测试音频/似是故人来-梅艳芳.wav"
+        let wavFile = "/Users/meowlgm/Documents/测试音频/让一切随风 - 钟镇涛.mp3"
         
         print("\n" + String(repeating: "=", count: 70))
         print("测试 enumerateOrderedValues API")

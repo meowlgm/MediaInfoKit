@@ -56,11 +56,20 @@ static const NSInteger paddingLenth = 30;
       // Store the MediaInfo handle for raw value queries
       self.mediaInfoHandle = mi;
 
+      // Save current language setting, then switch to English for parsing
+      // This ensures stream names (General, Video, Audio, etc.) are always in English
+      std::basic_string<MediaInfoDLL::Char> savedLanguage =
+          MediaInfoDLL::MediaInfo::Option_Static([@"language_get" mik_WCHARString], [@"" mik_WCHARString]);
+      MediaInfoDLL::MediaInfo::Option_Static([@"language" mik_WCHARString], [@"" mik_WCHARString]);
+
       // Parse formatted text for existing API compatibility
       std::basic_string<MediaInfoDLL::Char> rawInfo = mi->Inform();
       NSString *streamInfo =
           [[NSString alloc] mik_initWithWCHAR:rawInfo.c_str()];
       [self parseStreamInfo:streamInfo];
+
+      // Restore original language setting
+      MediaInfoDLL::MediaInfo::Option_Static([@"language" mik_WCHARString], savedLanguage.c_str());
 
       // Note: We keep the file open and mi object alive for raw value queries
       // It will be closed and deleted in dealloc
