@@ -421,8 +421,8 @@ protected :
     void MGAAudioMetadataIdentifier();                          //
     void MGAAudioMetadataPayloadULArray();                      //
     void MGAMetadataSectionLinkID();                            //
-    void SADMMetadataSectionLinkID();                           //
-    void SADMProfileLevelULBatch();                             //
+    void SADMMetadataSectionLinkID() { MGAMetadataSectionLinkID(); }
+    void SADMProfileLevelULBatch() { ADMProfileLevelULBatch(); }
     void MPEGAudioBitRate();                         //
     void MultipleDescriptor_FileDescriptors();                  //3F01
     void RFC5646SpokenLanguage();
@@ -1285,7 +1285,7 @@ protected :
     void           ChooseParser_xAnc(const essences::iterator& Essence, const descriptors::iterator& Descriptor);
     void           ChooseParser_Hdcam(const essences::iterator& Essence, const descriptors::iterator& Descriptor);
     void           ChooseParser_Hevc(const essences::iterator& Essence, const descriptors::iterator& Descriptor);
-    void           ChooseParser_JpegXs(const essences::iterator& Essence, const descriptors::iterator& Descriptor);
+    void           ChooseParser(const essences::iterator& Essence, const descriptors::iterator& Descriptor, stream_t StreamKind, const char* Format = nullptr);
 
     //Helpers
     int32u Vector(int32u ExpectedLength=(int32u)-1);
@@ -1459,6 +1459,8 @@ protected :
     int32u ADMChannelMapping_LocalChannelID;
     string ADMChannelMapping_ADMAudioTrackUID;
     std::bitset<2> ADMChannelMapping_Presence;
+    std::map<int128u, set<int128u> > ADMProfileLevelULBatch_List;
+    void CompareAdmProfiles();
     #endif
     #if defined(MEDIAINFO_IAB_YES)
     File__Analyze* Adm_ForLaterMerge;

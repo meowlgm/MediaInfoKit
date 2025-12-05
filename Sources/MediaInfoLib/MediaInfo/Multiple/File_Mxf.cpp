@@ -2428,6 +2428,10 @@ void File_Mxf::Streams_Finish()
         Merge(*DolbyAudioMetadata, Stream_Audio, 0, 0);
     if (Adm)
     {
+        Fill(Adm);
+        #if defined(MEDIAINFO_ADM_YES)
+        CompareAdmProfiles();
+        #endif
         Finish(Adm);
         Merge(*Adm, Stream_Audio, 0, 0);
     }
@@ -2472,7 +2476,7 @@ void File_Mxf::Streams_Finish()
     //Commercial names
     Streams_Finish_CommercialNames();
 
-    Merge_Conformance();
+    Streams_Finish_Conformance();
 }
 
 //---------------------------------------------------------------------------
@@ -6069,6 +6073,11 @@ void File_Mxf::Data_Parse()
     switch (Code.hi >> 8) {
     case 0x060E2B34010201LL: {
     {
+        if (IsArriExperimental && Code.lo == 0x0F01030101010100LL) {
+            Code_Compare3 = (int32u)(Essences::FrameWrappedMPEGPictureElement >> 32);
+            Code_Compare4 = (int32u)Essences::FrameWrappedMPEGPictureElement | 0x010000;
+        }
+
         auto Name = Mxf_Param_Info((int32u)Code.hi, Code.lo & 0xFFFFFFFFFF00FF00);
         Element_Name(Name ? Name : "Unknown stream");
 
@@ -6197,7 +6206,7 @@ void File_Mxf::Data_Parse()
                     if (Track->second.TrackNumber==Code_Compare4)
                         Essence->second.TrackID=Track->second.TrackID;
                 #if MEDIAINFO_DEMUX || MEDIAINFO_SEEK
-                    if (Essence->second.TrackID==(int32u)-1 && !Duration_Detected && !Config->File_IsDetectingDuration_Get())
+                    if (Config->ParseSpeed>=1 && Essence->second.TrackID==(int32u)-1 && !Duration_Detected && !Config->File_IsDetectingDuration_Get())
                     {
                         DetectDuration(); //In one file (*-009.mxf), the TrackNumber is known only at the end of the file (Open and incomplete header/footer)
                         for (tracks::iterator Track=Tracks.begin(); Track!=Tracks.end(); ++Track)
@@ -10349,7 +10358,7 @@ void File_Mxf::Identification_ProductName()
 
     FILLING_BEGIN();
         Identifications[InstanceUID].ProductName=Data;
-        if (Data == __T("ALEXA Mini")) {
+        if (Data == __T("ALEXA Mini") || Data == __T("ALEXA Mini LF")) {
             IsArriExperimental = true;
         }
     FILLING_END();
@@ -10903,8 +10912,15 @@ void File_Mxf::RIFFChunkStreamID_link1()
 void File_Mxf::ADMProfileLevelULBatch()
 {
     VECTOR(16);
+    set<int128u> List;
     for (int32u i=0; i<Count; i++)
-        Skip_UUID(                                              "UUID");
+    {
+        int128u UUID;
+        Get_UUID (UUID,                                         "UUID"); Param_Info1(Mxf_Param_Info((int32u)UUID.hi, UUID.lo)); Element_Info1(Mxf_Param_Info((int32u)UUID.hi, UUID.lo));
+        List.insert(UUID);
+    }
+
+    ADMProfileLevelULBatch_List[InstanceUID] = std::move(List);
 }
 
 //---------------------------------------------------------------------------
@@ -11338,25 +11354,6 @@ void File_Mxf::MGAMetadataSectionLinkID()
 {
     //Parsing
     Skip_UUID(                                                  "UUID");
-}
-
-//---------------------------------------------------------------------------
-void File_Mxf::SADMMetadataSectionLinkID()
-{
-    //Parsing
-    Skip_UUID(                                                  "UUID");
-}
-
-//---------------------------------------------------------------------------
-void File_Mxf::SADMProfileLevelULBatch()
-{
-    //Parsing
-    VECTOR(16);
-    for (int32u i=0; i<Count; i++)
-    {
-        //Parsing
-        Skip_UUID(                                              "UUID");
-    }
 }
 
 //---------------------------------------------------------------------------
@@ -14415,7 +14412,9 @@ void File_Mxf::ChooseParser__FromCodingScheme(const essences::iterator &Essence,
         return;
 
     if (IsArriExperimental) {
-        if ((Code.lo & 0xFFFFFFFFFF0FF000) == 0x0401020102010000) {
+        switch (Descriptor->second.EssenceCompression.lo) {
+        case 0x0401020102010203:
+        case 0x0F01020201010100:
             return ChooseParser_ArriRaw(Essence, Descriptor);
         }
     }
@@ -14646,7 +14645,7 @@ void File_Mxf::ChooseParser__FromEssenceContainer(const essences::iterator &Esse
     case Labels::MXFGCEssenceContainerDNxPacked: ChooseParser_Vc3(Essence, Descriptor); break;
     //case Labels::MXFGCHEVCNALUnitStream: (Essence, Descriptor); break;
     case Labels::MXFGCHEVCByteStream: ChooseParser_Hevc(Essence, Descriptor); break;
-    case Labels::MXFGCJPEGXSPictures: ChooseParser_JpegXs(Essence, Descriptor); break;
+    case Labels::MXFGCJPEGXSPictures: ChooseParser(Essence, Descriptor, Stream_Video, "JPEG XS"); break;
     case Labels::MXFGCFFV1Pictures: ChooseParser_Ffv1(Essence, Descriptor); break;
     case Labels::MXFGCMGAAudioMappings: ChooseParser_Mga(Essence, Descriptor); break;
     }
@@ -14656,9 +14655,9 @@ void File_Mxf::ChooseParser__FromEssenceContainer(const essences::iterator &Esse
 void File_Mxf::ChooseParser__FromEssence(const essences::iterator &Essence, const descriptors::iterator &Descriptor)
 {
     if (IsArriExperimental) {
-        if ((Code.lo & 0xFFFFFFFFFF00FF00) == 0x0F01030101000100) {
-            ChooseParser_ArriRaw(Essence, Descriptor);
-            return;
+        switch (Code.lo & 0xFFFFFFFFFF00FF00) {
+        case 0x0F01030101000100:
+            return ChooseParser_ArriRaw(Essence, Descriptor);
         }
     }
 
@@ -14666,51 +14665,81 @@ void File_Mxf::ChooseParser__FromEssence(const essences::iterator &Essence, cons
         return;
 
     switch (Code.lo & 0xFFFFFFFFFF00FF00) {
-    case Essences::D10Video: ChooseParser_Mpegv(Essence, Descriptor); break;
-    case Essences::D10Audio: ChooseParser_SmpteSt0331(Essence, Descriptor); break;
+    case Essences::TypeD10Element: ChooseParser_Mpegv(Essence, Descriptor); break;
+    case Essences::_8ChAES3Element: ChooseParser_SmpteSt0331(Essence, Descriptor); break;
+    case Essences::VBILineElement: ChooseParser(Essence, Descriptor, Stream_Other, "VBI Line"); break;
+    case Essences::ANCPacketElement: ChooseParser(Essence, Descriptor, Stream_Other, "ANC Packet"); break;
+    case Essences::GeneralDataElement: ChooseParser(Essence, Descriptor, Stream_Other, "General Data"); break;
+    case Essences::BWFElement: ChooseParser(Essence, Descriptor, Stream_Other, "BWF"); break;
+    case Essences::JFIFElement: ChooseParser(Essence, Descriptor, Stream_Other, "JFIF"); break;
+    case Essences::TIFFElement: ChooseParser(Essence, Descriptor, Stream_Other, "TIFF"); break;
+    case Essences::ControlElement: ChooseParser(Essence, Descriptor, Stream_Other, "Control"); break;
     case Essences::UncompressedSystem_Line: ChooseParser_Mxf(Essence, Descriptor); break;
-    case Essences::D11Video: ChooseParser_Hdcam(Essence, Descriptor); break;
-    case Essences::Uncompressed_Frame:
-    case Essences::Uncompressed_Clip:
-    case Essences::Uncompressed_Line: ChooseParser_Raw(Essence, Descriptor); break;
-    case Essences::MPEG_Frame:
-    case Essences::MPEG_Clip:
-    case Essences::MPEG_Custom: ChooseParser_Mpegv(Essence, Descriptor); ChooseParser_Avc(Essence, Descriptor); ChooseParser_Hevc(Essence, Descriptor); break;
-    case Essences::JPEG2000: ChooseParser_Jpeg2000(Essence, Descriptor); break;
-    case Essences::VC1_Frame:
-    case Essences::VC1_Clip: ChooseParser_Vc1(Essence, Descriptor); break;
+    case Essences::TypeD11ElementFrameWrapped: ChooseParser_Hdcam(Essence, Descriptor); break;
+    case Essences::FrameWrappedPictureElement:
+    case Essences::ClipWrappedPictureElement:
+    case Essences::LineWrappedPictureElement: ChooseParser_Raw(Essence, Descriptor); break;
+    case Essences::FrameWrappedMPEGPictureElement:
+    case Essences::ClipWrappedMPEGPictureElement:
+    case Essences::CustomWrappedMPEGPictureElement: ChooseParser_Mpegv(Essence, Descriptor); ChooseParser_Avc(Essence, Descriptor); ChooseParser_Hevc(Essence, Descriptor); break;
+    case Essences::FrameWrappedJPEG2000PictureElement:
+    case Essences::ClipWrappedJPEG2000PictureElement: ChooseParser_Jpeg2000(Essence, Descriptor); break;
+    case Essences::FrameWrappedVC1PictureElement:
+    case Essences::ClipWrappedVC1PictureElement: ChooseParser_Vc1(Essence, Descriptor); break;
     case Essences::AvidTechnologyInc_VC3_Frame:
     case Essences::AvidTechnologyInc_VC3_Clip:
     case Essences::AvidTechnologyInc_VC3_Custom:
-    case Essences::VC3_Frame:
-    case Essences::VC3_Clip: ChooseParser_Vc3(Essence, Descriptor); break;
-    case Essences::ProRes: ChooseParser_ProRes(Essence, Descriptor); break;
-    case Essences::ARRIRAW_Frame: ChooseParser_ArriRaw(Essence, Descriptor); break;
-    case Essences::FFV1_Frame:
-    case Essences::FFV1_Clip: ChooseParser_Ffv1(Essence, Descriptor); break;
-    case Essences::PCM1:
-    case Essences::PCM2:
-    case Essences::DVAudio:
-    case Essences::PCM_P2: ChooseParser_Pcm(Essence, Descriptor); break;
-    case Essences::MPEGA_Frame:
-    case Essences::MPEGA_Clip:
-    case Essences::MPEGA_Custom: ChooseParser_Aac(Essence, Descriptor); ChooseParser_Mpega(Essence, Descriptor); break;
-    case Essences::ALaw_Frame:
-    case Essences::ALaw_Clip:
-    case Essences::ALaw_Custom: ChooseParser_Alaw(Essence, Descriptor); break;
-    case Essences::IAB_Temp:
-    case Essences::IAB_Clip:
-    case Essences::IAB_Frame: ChooseParser_Iab(Essence, Descriptor); break;
-    case Essences::MGA_Frame:
-    case Essences::MGA_Clip: ChooseParser_Mga(Essence, Descriptor); break;
-    case Essences::VBI_Frame: ChooseParser_Vbi(Essence, Descriptor); break;
-    case Essences::ANC_Frame: ChooseParser_Ancillary(Essence, Descriptor); break;
-    case Essences::xANC_Line:
-    case Essences::VANC_Line:
-    case Essences::HANC_Line: ChooseParser_xAnc(Essence, Descriptor); break;
-    case Essences::TimedText: ChooseParser_TimedText(Essence, Descriptor); break;
-    case Essences::DVDIF_Frame:
-    case Essences::DVDIF_Clip: ChooseParser_DV(Essence, Descriptor); break;
+    case Essences::FrameWrappedVC3PictureElement:
+    case Essences::ClipWrappedVC3PictureElement: ChooseParser_Vc3(Essence, Descriptor); break;
+    case Essences::FrameWrappedTIFF_EPPictureElement:
+    case Essences::ClipWrappedTIFF_EPPictureElement: ChooseParser(Essence, Descriptor, Stream_Video, "TIFF"); break;
+    case Essences::FrameWrappedVC2PictureElement:
+    case Essences::ClipWrappedVC2PictureElement: ChooseParser(Essence, Descriptor, Stream_Video, "VC-2"); break;
+    case Essences::FrameWrappedACESPictureElement:
+    case Essences::ClipWrappedACESPictureElement: ChooseParser(Essence, Descriptor, Stream_Video, "ACES"); break;
+    case Essences::FrameWrappedVC5PictureElement:
+    case Essences::ClipWrappedVC5PictureElement:
+    case Essences::CustomWrappedVC5PictureElement: ChooseParser(Essence, Descriptor, Stream_Video, "VC-5"); break;
+    case Essences::FrameWrappedProResPictureElement: ChooseParser_ProRes(Essence, Descriptor); break;
+    case Essences::FrameWrappedDNxPackedPictureElement:
+    case Essences::ClipWrappedDNxPackedPictureElement: ChooseParser_Vc3(Essence, Descriptor); break;
+    case Essences::FrameWrappedJPEGXSPictureElement:
+    case Essences::ClipWrappedJPEGXSPictureElement: ChooseParser(Essence, Descriptor, Stream_Video, "JPEG XS"); break;
+    case Essences::ARRIRAWPictureElement: ChooseParser_ArriRaw(Essence, Descriptor); break;
+    case Essences::FrameWrappedFFV1PictureElement:
+    case Essences::ClipWrappedFFV1PictureElement: ChooseParser_Ffv1(Essence, Descriptor); break;
+    case Essences::ARRICOREPictureElement: ChooseParser(Essence, Descriptor, Stream_Video, "ARRICORE"); break;
+    case Essences::WaveCustomWrappedSoundElement:
+    case Essences::AES3CustomWrappedSoundElement:
+    case Essences::WaveFrameWrappedSoundElement:
+    case Essences::WaveClipWrappedSoundElement:
+    case Essences::AES3FrameWrappedSoundElement:
+    case Essences::AES3ClipWrappedSoundElement: ChooseParser_Pcm(Essence, Descriptor); break;
+    case Essences::FrameWrappedMPEGSoundElement:
+    case Essences::ClipWrappedMPEGSoundElement:
+    case Essences::CustomWrappedMPEGSoundElement: ChooseParser_Aac(Essence, Descriptor); ChooseParser_Mpega(Essence, Descriptor); break;
+    case Essences::FrameWrappedAlawSoundElement:
+    case Essences::ClipWrappedAlawSoundElement:
+    case Essences::CustomWrappedAlawSoundElement: ChooseParser_Alaw(Essence, Descriptor); break;
+    case Essences::IMF_IABEssenceClipWrappedElement:
+    case Essences::FrameWrappedIABSoundElement: ChooseParser_Iab(Essence, Descriptor); break;
+    case Essences::FrameWrappedMGASoundElement:
+    case Essences::ClipWrappedMGASoundElement: ChooseParser_Mga(Essence, Descriptor); break;
+    case Essences::FrameWrappedVBIDataElement: ChooseParser_Vbi(Essence, Descriptor); break;
+    case Essences::FrameWrappedANCDataElement: ChooseParser_Ancillary(Essence, Descriptor); break;
+    case Essences::FrameWrappedMPEGDataElement:
+    case Essences::ClipWrappedMPEGDataElement:
+    case Essences::CustomWrappedMPEGDataElement: ChooseParser(Essence, Descriptor, Stream_Other, "MPEG Data"); break;
+    case Essences::LineWrappedPictureDataElement:
+    case Essences::LineWrappedPictureVANCDataElement:
+    case Essences::LineWrappedPictureHANCDataElement: ChooseParser_xAnc(Essence, Descriptor); break;
+    case Essences::TimedTextDataElement: ChooseParser_TimedText(Essence, Descriptor); break;
+    case Essences::AuxDataEssence: ChooseParser(Essence, Descriptor, Stream_Other, "Aux Data"); break;
+    case Essences::FrameWrappedDMCVTElement: ChooseParser(Essence, Descriptor, Stream_Other, "DMCVT"); break;
+    case Essences::SupplementalDataElement: ChooseParser(Essence, Descriptor, Stream_Other, "Supplemental"); break;
+    case Essences::TimedEventsDataElement: ChooseParser(Essence, Descriptor, Stream_Other, "Timed Events"); break;
+    case Essences::DVDIFFrameWrapped:
+    case Essences::DVDIFClipWrapped: ChooseParser_DV(Essence, Descriptor); break;
     case Essences::FrameWrappedISXDData: ChooseParser_Isxd(Essence, Descriptor); break;
     case Essences::FrameWrappedISXDData2: ChooseParser_Isxd(Essence, Descriptor); break;
     case Essences::PHDRImageMetadataItem: ChooseParser_Phdr(Essence, Descriptor); break;
@@ -15136,6 +15165,8 @@ void File_Mxf::ChooseParser_Pcm(const essences::iterator &Essence, const descrip
     //Creating the parser
     #if defined(MEDIAINFO_PCM_YES)
         File_Pcm* Parser=new File_Pcm;
+        if (IsArriExperimental)
+            Parser->Frame_Count_Valid=1;
         if (Descriptor!=Descriptors.end())
         {
             if (Channels)
@@ -15325,6 +15356,7 @@ void File_Mxf::ChooseParser_ArriRaw(const essences::iterator &Essence, const des
                 Parser->Fill(Stream_Video, 0, Video_Format, "ARRIRAW HDE", Unlimited, true, true);
             }
         }
+        Parser->Finish();
         Essence->second.Parsers.push_back(Parser);
     #endif
 }
@@ -15589,19 +15621,16 @@ void File_Mxf::ChooseParser_Hevc(const essences::iterator &Essence, const descri
 }
 
 //---------------------------------------------------------------------------
-void File_Mxf::ChooseParser_JpegXs(const essences::iterator &Essence, const descriptors::iterator &Descriptor)
+void File_Mxf::ChooseParser(const essences::iterator &Essence, const descriptors::iterator &Descriptor, stream_t StreamKind, const char* Format)
 {
-    Essence->second.StreamKind=Stream_Video;
+    Essence->second.StreamKind=StreamKind;
 
     //Filling
-    #if 0
-    #else
-        //Filling
-        File__Analyze* Parser=new File_Unknown();
-        Open_Buffer_Init(Parser);
-        Parser->Stream_Prepare(Stream_Video);
-        Parser->Fill(Stream_Video, 0, Video_Format, "JPEG XS");
-    #endif
+    File__Analyze* Parser=new File_Unknown();
+    Open_Buffer_Init(Parser);
+    Parser->Stream_Prepare(StreamKind);
+    if (Format)
+        Parser->Fill(StreamKind, 0, Fill_Parameter(StreamKind, Generic_Format), Format);
     Essence->second.Parsers.push_back(Parser);
 }
 
@@ -15981,6 +16010,87 @@ void File_Mxf::Descriptor_Fill(const char* Name, const Ztring& Value)
     else
         Info->second = Value;
 }
+
+//---------------------------------------------------------------------------
+#if defined(MEDIAINFO_ADM_YES)
+struct adm_ul_to_string
+{
+    int64u UL;
+    const char* Name;
+};
+static adm_ul_to_string Mxf_ADM_UL_To_String[] = {
+    { 0x0402021102010000LL, "AdvSS Emission, Version 1, Level 0" },
+    { 0x0402021102020000LL, "AdvSS Emission, Version 1, Level 1" },
+    { 0x0402021102030000LL, "AdvSS Emission, Version 1, Level 2" },
+    { 0x0D02020101000000LL, "EBU Production, Version 1"},
+    { 0x0E09010106010100LL, "Dolby Atmos Master, Version 1"},
+    { 0x0E09010106010200LL, "Dolby Atmos Master, Version 1"}, // 1.1
+    { 0x0E09010106020100LL, "Dolby E Emission, Version 1, Level 1"},
+};
+void File_Mxf::CompareAdmProfiles()
+{
+    if (ADMProfileLevelULBatch_List.empty() || ADMProfileLevelULBatch_List.size() > 1)
+        return; // TODO: support multiple ADMProfileLevelULBatch
+
+    std::set<string> Profile_List_Container;
+    auto CanNotCompare = false;
+    for (const auto& Item : ADMProfileLevelULBatch_List.cbegin()->second)
+    {
+        const char* Item_String = nullptr;
+        for (const auto& UL_To_String : Mxf_ADM_UL_To_String)
+        {
+            if (Item.lo == UL_To_String.UL)
+            {
+                Item_String = UL_To_String.Name;
+                break;
+            }
+        }
+
+        if (!Item_String)
+        {
+            CanNotCompare = true;
+            continue;
+        }
+
+        Profile_List_Container.insert(Item_String);
+    }
+
+    auto Max = Adm->Count_Get(Stream_Audio, 0);
+    std::set<string> Profile_List_Stream;
+    for (size_t Pos = 0; Pos < Max; Pos++)
+    {
+        const auto& Name = Adm->Retrieve_Const(Stream_Audio, 0, Pos, Info_Name);
+        if ((Name.size() < 22 || Name.size() > 23 || Name.rfind(__T("AdmProfile AdmProfile"), 0)) && Name != __T("AdmProfile"))
+            continue;
+
+        Profile_List_Stream.insert(Adm->Retrieve_Const(Stream_Audio, 0, Pos, Info_Text).To_UTF8());
+    }
+
+    for (const auto& Profile_Container : Profile_List_Container)
+    {
+        const auto Profile_Stream = Profile_List_Stream.find(Profile_Container);
+        if (Profile_Stream == Profile_List_Stream.end())
+            Adm->Fill_Conformance("Crosscheck AdmProfile", '\"' + Profile_Container + "\" is listed in the container but not found in the ADM content");
+        else
+            Profile_List_Stream.erase(Profile_Stream);
+    }
+
+    for (const auto& Profile_Stream : Profile_List_Stream)
+    {
+        auto IsKnown = false;
+        for (const auto& UL_To_String : Mxf_ADM_UL_To_String)
+        {
+            if (Profile_Stream == UL_To_String.Name)
+            {
+                IsKnown = true;
+                break;
+            }
+        }
+        if (IsKnown && !CanNotCompare)
+            Adm->Fill_Conformance("Crosscheck AdmProfile", '\"' + Profile_Stream + "\" is not listed in the container but found in the ADM content");
+    }
+}
+#endif
 
 } //NameSpace
 

@@ -79,6 +79,29 @@ static const NSInteger paddingLenth = 30;
   }
 }
 
+/// 判断字符串是否为有效的 MediaInfo 流名称
+/// MediaInfo 流名称格式：基本类型 或 基本类型 #数字
+/// 基本类型包括：General, Video, Audio, Text, Menu, Image, Other
++ (BOOL)isValidStreamName:(NSString *)name {
+  static NSRegularExpression *regex = nil;
+  static dispatch_once_t onceToken;
+  dispatch_once(&onceToken, ^{
+    // 匹配：General, Video, Audio, Text, Menu, Image, Other
+    // 或带编号：Video #1, Audio #2, Text #10 等
+    NSString *pattern = @"^(General|Video|Audio|Text|Menu|Image|Other)(\\s+#\\d+)?$";
+    regex = [NSRegularExpression regularExpressionWithPattern:pattern
+                                                      options:0
+                                                        error:nil];
+  });
+  
+  if (!name || name.length == 0) {
+    return NO;
+  }
+  
+  NSRange range = NSMakeRange(0, name.length);
+  return [regex numberOfMatchesInString:name options:0 range:range] > 0;
+}
+
 - (void)parseStreamInfo:(NSString *)info {
   self.streamNames = [NSMutableArray array];
   self.streamsOrder = [NSMutableDictionary dictionary];
@@ -87,6 +110,7 @@ static const NSInteger paddingLenth = 30;
   __block NSString *streamName;
   __block NSMutableArray *currStreamOrder = nil;
   __block NSMutableDictionary *currStreamInfo = nil;
+  __block NSString *lastKey = nil;  // 用于追加多行值
 
   [info enumerateLinesUsingBlock:^(NSString *line, BOOL *stop) {
     if ([line isEqualToString:@""]) {
@@ -95,13 +119,24 @@ static const NSInteger paddingLenth = 30;
         [self.streamsOrder setValue:currStreamOrder forKey:streamName];
         [self.streamsInfo setValue:currStreamInfo forKey:streamName];
         streamName = nil;
+        lastKey = nil;
       }
     } else {
       NSArray *components = [line componentsSeparatedByString:@": "];
       if (components.count == 1) {
-        streamName = [components[0] mik_trimmed];
-        currStreamOrder = [NSMutableArray array];
-        currStreamInfo = [NSMutableDictionary dictionary];
+        NSString *trimmedLine = [components[0] mik_trimmed];
+        // 使用正则匹配判断是否为有效流名称
+        if ([MIKMediaInfo isValidStreamName:trimmedLine]) {
+          streamName = trimmedLine;
+          currStreamOrder = [NSMutableArray array];
+          currStreamInfo = [NSMutableDictionary dictionary];
+          lastKey = nil;
+        } else if (lastKey && currStreamInfo) {
+          // 否则作为上一个值的续行处理
+          NSString *existingValue = currStreamInfo[lastKey];
+          NSString *appendedValue = [NSString stringWithFormat:@"%@\n%@", existingValue, trimmedLine];
+          [currStreamInfo setObject:appendedValue forKey:lastKey];
+        }
       } else {
         NSString *key = [components[0] mik_trimmed];
         NSMutableString *value =
@@ -111,6 +146,7 @@ static const NSInteger paddingLenth = 30;
         }
         [currStreamOrder addObject:key];
         [currStreamInfo setObject:[value mik_trimmed] forKey:key];
+        lastKey = key;  // 记录最后一个键，用于处理多行值
       }
     }
   }];

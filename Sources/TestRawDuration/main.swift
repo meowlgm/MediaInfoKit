@@ -4,6 +4,9 @@ import MediaInfoKit
 @main
 struct TestRawDuration {
     static func main() {
+        // 测试 enumerateOrderedValues API
+        testEnumerateOrderedValues()
+        
         let startTime = Date()
 
         let testDir = "/Volumes/Entertainment/测试"
@@ -106,5 +109,40 @@ struct TestRawDuration {
         }
 
         return videoFiles.sorted()
+    }
+    
+    /// 测试 enumerateOrderedValues API - 读取 WAV 文件信息
+    static func testEnumerateOrderedValues() {
+        let wavFile = "/Users/meowlgm/Documents/测试音频/似是故人来-梅艳芳.wav"
+        
+        print("\n" + String(repeating: "=", count: 70))
+        print("测试 enumerateOrderedValues API")
+        print("文件: \(wavFile)")
+        print(String(repeating: "=", count: 70))
+        
+        guard let info = MIKMediaInfo(fileURL: URL(fileURLWithPath: wavFile)) else {
+            print("❌ 无法读取文件")
+            return
+        }
+        
+        // 获取所有可用的 stream keys
+        let streamKeys = info.streamKeys
+        print("\n📋 可用的 Stream: \(streamKeys)\n")
+        
+        // 遍历每个 stream，使用 enumerateOrderedValues 输出信息
+        for streamKey in streamKeys {
+            print("【\(streamKey)】")
+            print(String(repeating: "-", count: 50))
+            
+            info.enumerateOrderedValues({ (key, value) in
+                // 格式化输出：键右对齐，值左对齐
+                let paddedKey = key.padding(toLength: 30, withPad: " ", startingAt: 0)
+                print("  \(paddedKey) : \(value)")
+            }, forStreamKey: streamKey)
+            
+            print("")
+        }
+        
+        print(String(repeating: "=", count: 70) + "\n")
     }
 }
