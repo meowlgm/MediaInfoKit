@@ -56,20 +56,14 @@ static const NSInteger paddingLenth = 30;
       // Store the MediaInfo handle for raw value queries
       self.mediaInfoHandle = mi;
 
-      // Save current language setting, then switch to English for parsing
-      // This ensures stream names (General, Video, Audio, etc.) are always in English
-      std::basic_string<MediaInfoDLL::Char> savedLanguage =
-          MediaInfoDLL::MediaInfo::Option_Static([@"language_get" mik_WCHARString], [@"" mik_WCHARString]);
-      MediaInfoDLL::MediaInfo::Option_Static([@"language" mik_WCHARString], [@"" mik_WCHARString]);
-
-      // Parse formatted text for existing API compatibility
+      // Build stream names list using Count_Get API (language-independent)
+      [self buildStreamNamesFromCountAPI:mi];
+      
+      // Parse formatted text for stream details
       std::basic_string<MediaInfoDLL::Char> rawInfo = mi->Inform();
       NSString *streamInfo =
           [[NSString alloc] mik_initWithWCHAR:rawInfo.c_str()];
-      [self parseStreamInfo:streamInfo];
-
-      // Restore original language setting
-      MediaInfoDLL::MediaInfo::Option_Static([@"language" mik_WCHARString], savedLanguage.c_str());
+      [self parseStreamDetails:streamInfo];
 
       // Note: We keep the file open and mi object alive for raw value queries
       // It will be closed and deleted in dealloc
@@ -111,52 +105,104 @@ static const NSInteger paddingLenth = 30;
   return [regex numberOfMatchesInString:name options:0 range:range] > 0;
 }
 
-- (void)parseStreamInfo:(NSString *)info {
+/// 使用 Count_Get API 构建流名称列表（语言无关）
+- (void)buildStreamNamesFromCountAPI:(void *)handle {
+  MediaInfoDLL::MediaInfo *mi = (MediaInfoDLL::MediaInfo *)handle;
+  
   self.streamNames = [NSMutableArray array];
   self.streamsOrder = [NSMutableDictionary dictionary];
   self.streamsInfo = [NSMutableDictionary dictionary];
+  
+  // Stream types and their English names
+  struct StreamTypeInfo {
+    MediaInfoDLL::stream_t kind;
+    NSString *name;
+  };
+  
+  StreamTypeInfo streamTypes[] = {
+    {MediaInfoDLL::Stream_General, @"General"},
+    {MediaInfoDLL::Stream_Video, @"Video"},
+    {MediaInfoDLL::Stream_Audio, @"Audio"},
+    {MediaInfoDLL::Stream_Text, @"Text"},
+    {MediaInfoDLL::Stream_Other, @"Other"},
+    {MediaInfoDLL::Stream_Image, @"Image"},
+    {MediaInfoDLL::Stream_Menu, @"Menu"},
+  };
+  
+  for (const auto& st : streamTypes) {
+    size_t count = mi->Count_Get(st.kind);
+    for (size_t i = 0; i < count; i++) {
+      NSString *streamName;
+      if (count == 1 && st.kind == MediaInfoDLL::Stream_General) {
+        // General stream is always singular
+        streamName = st.name;
+      } else if (count == 1) {
+        // Single stream without number
+        streamName = st.name;
+      } else {
+        // Multiple streams with number (1-indexed)
+        streamName = [NSString stringWithFormat:@"%@ #%zu", st.name, i + 1];
+      }
+      
+      [self.streamNames addObject:streamName];
+      [self.streamsOrder setValue:[NSMutableArray array] forKey:streamName];
+      [self.streamsInfo setValue:[NSMutableDictionary dictionary] forKey:streamName];
+    }
+  }
+}
 
-  __block NSString *streamName;
+/// 解析 Inform() 输出填充流详细信息
+/// 注意：streamNames 已由 buildStreamNamesFromCountAPI 填充，此方法只填充属性
+- (void)parseStreamDetails:(NSString *)info {
+  // streamNames, streamsOrder, streamsInfo 已在 buildStreamNamesFromCountAPI 中初始化
+  
+  __block NSInteger streamIndex = -1;  // 当前流索引
+  __block NSString *currentStreamName = nil;
   __block NSMutableArray *currStreamOrder = nil;
   __block NSMutableDictionary *currStreamInfo = nil;
   __block NSString *lastKey = nil;  // 用于追加多行值
+  __block BOOL isFirstLine = YES;
 
   [info enumerateLinesUsingBlock:^(NSString *line, BOOL *stop) {
     if ([line isEqualToString:@""]) {
-      if (streamName) {
-        [self.streamNames addObject:streamName];
-        [self.streamsOrder setValue:currStreamOrder forKey:streamName];
-        [self.streamsInfo setValue:currStreamInfo forKey:streamName];
-        streamName = nil;
-        lastKey = nil;
-      }
+      // 空行表示当前流结束
+      lastKey = nil;
     } else {
       NSArray *components = [line componentsSeparatedByString:@": "];
       if (components.count == 1) {
         NSString *trimmedLine = [components[0] mik_trimmed];
-        // 使用正则匹配判断是否为有效流名称
-        if ([MIKMediaInfo isValidStreamName:trimmedLine]) {
-          streamName = trimmedLine;
-          currStreamOrder = [NSMutableArray array];
-          currStreamInfo = [NSMutableDictionary dictionary];
+        // 单行无冒号 - 可能是流名称（任何语言）或多行值的续行
+        // 检查是否是新流：如果是第一行，或者前一行是空行后的第一个非空行
+        if (isFirstLine || lastKey == nil) {
+          // 这是一个新流的开始
+          streamIndex++;
+          if (streamIndex < (NSInteger)self.streamNames.count) {
+            currentStreamName = self.streamNames[streamIndex];
+            currStreamOrder = self.streamsOrder[currentStreamName];
+            currStreamInfo = self.streamsInfo[currentStreamName];
+          }
           lastKey = nil;
         } else if (lastKey && currStreamInfo) {
-          // 否则作为上一个值的续行处理
+          // 这是上一个值的续行
           NSString *existingValue = currStreamInfo[lastKey];
           NSString *appendedValue = [NSString stringWithFormat:@"%@\n%@", existingValue, trimmedLine];
           [currStreamInfo setObject:appendedValue forKey:lastKey];
         }
       } else {
-        NSString *key = [components[0] mik_trimmed];
-        NSMutableString *value =
-            [NSMutableString stringWithString:components[1]];
-        for (int i = 2; i < components.count; i++) {
-          [value appendFormat:@":%@", components[i]];
+        // 包含 ": " 的行是属性行
+        if (currStreamOrder && currStreamInfo) {
+          NSString *key = [components[0] mik_trimmed];
+          NSMutableString *value =
+              [NSMutableString stringWithString:components[1]];
+          for (int i = 2; i < components.count; i++) {
+            [value appendFormat:@":%@", components[i]];
+          }
+          [currStreamOrder addObject:key];
+          [currStreamInfo setObject:[value mik_trimmed] forKey:key];
+          lastKey = key;
         }
-        [currStreamOrder addObject:key];
-        [currStreamInfo setObject:[value mik_trimmed] forKey:key];
-        lastKey = key;  // 记录最后一个键，用于处理多行值
       }
+      isFirstLine = NO;
     }
   }];
 }
