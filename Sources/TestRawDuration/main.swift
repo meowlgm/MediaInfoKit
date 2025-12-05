@@ -111,38 +111,40 @@ struct TestRawDuration {
         return videoFiles.sorted()
     }
     
-    /// 测试 enumerateOrderedValues API - 读取 WAV 文件信息
+    /// 导出媒体信息
     static func testEnumerateOrderedValues() {
-        let wavFile = "/Users/meowlgm/Documents/测试音频/让一切随风 - 钟镇涛.mp3"
+        let file = "/Volumes/Data/115/怪奇物语第五季/Stranger.Things.S05E01.mkv"
+        let outputDir = "/Users/meowlgm/Documents/MediaInfoKit"
         
-        print("\n" + String(repeating: "=", count: 70))
-        print("测试 enumerateOrderedValues API")
-        print("文件: \(wavFile)")
-        print(String(repeating: "=", count: 70))
-        
-        guard let info = MIKMediaInfo(fileURL: URL(fileURLWithPath: wavFile)) else {
-            print("❌ 无法读取文件")
-            return
+        // 英文版（默认）
+        if let info = MIKMediaInfo(fileURL: URL(fileURLWithPath: file)) {
+            var output = ""
+            for streamKey in info.streamKeys {
+                output += "[\(streamKey)]\n"
+                info.enumerateOrderedValues({ key, value in
+                    output += "\(key) : \(value)\n"
+                }, forStreamKey: streamKey)
+                output += "\n"
+            }
+            try? output.write(toFile: "\(outputDir)/mediainfo_english.txt", atomically: true, encoding: .utf8)
+            print("✅ 英文版已保存")
         }
         
-        // 获取所有可用的 stream keys
-        let streamKeys = info.streamKeys
-        print("\n📋 可用的 Stream: \(streamKeys)\n")
+        // 中文版
+        let lang = try! String(contentsOfFile: "/Applications/MediaInfo.app/Contents/Resources/zh-Hans.lproj/lang.csv")
+        MIKMediaInfo.setLanguageWithContents(lang)
         
-        // 遍历每个 stream，使用 enumerateOrderedValues 输出信息
-        for streamKey in streamKeys {
-            print("【\(streamKey)】")
-            print(String(repeating: "-", count: 50))
-            
-            info.enumerateOrderedValues({ (key, value) in
-                // 格式化输出：键右对齐，值左对齐
-                let paddedKey = key.padding(toLength: 30, withPad: " ", startingAt: 0)
-                print("  \(paddedKey) : \(value)")
-            }, forStreamKey: streamKey)
-            
-            print("")
+        if let info = MIKMediaInfo(fileURL: URL(fileURLWithPath: file)) {
+            var output = ""
+            for streamKey in info.streamKeys {
+                output += "[\(streamKey)]\n"
+                info.enumerateOrderedValues({ key, value in
+                    output += "\(key) : \(value)\n"
+                }, forStreamKey: streamKey)
+                output += "\n"
+            }
+            try? output.write(toFile: "\(outputDir)/mediainfo_chinese.txt", atomically: true, encoding: .utf8)
+            print("✅ 中文版已保存")
         }
-        
-        print(String(repeating: "=", count: 70) + "\n")
     }
 }
