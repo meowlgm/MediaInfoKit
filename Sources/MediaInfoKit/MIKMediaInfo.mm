@@ -46,81 +46,37 @@ static const NSInteger paddingLenth = 30;
     mi->Option([@"setlocale_LC_CTYPE" mik_WCHARString],
                [@"UTF-8" mik_WCHARString]);
 
-    // 方式1: 原始 cStringUsingEncoding 临时指针
+    // 主路径: cStringUsingEncoding
     const wchar_t *filename = [[fileURL path] mik_WCHARString];
-
-    // 方式2: getBytes 拷贝到自有缓冲区
-    NSString *pathStr = [fileURL path];
-    NSUInteger len = [pathStr length];
-    size_t bufSize = (len + 1) * sizeof(wchar_t);
-    wchar_t *filenameCopy = (wchar_t *)calloc(len + 1, sizeof(wchar_t));
-    NSUInteger usedLength = 0;
-    if (filenameCopy) {
-      [pathStr getBytes:filenameCopy
-              maxLength:bufSize - sizeof(wchar_t)
-             usedLength:&usedLength
-               encoding:NSUTF32LittleEndianStringEncoding
-                options:0
-                  range:NSMakeRange(0, len)
-         remainingRange:NULL];
-    }
-
-    // 诊断：对比两种方式的 wchar_t 内容
-    if (filename && filenameCopy) {
-      size_t lenOrig = wcslen(filename);
-      size_t lenCopy = wcslen(filenameCopy);
-      BOOL match = (lenOrig == lenCopy) && (memcmp(filename, filenameCopy, lenCopy * sizeof(wchar_t)) == 0);
-      if (!match) {
-        NSLog(@"  [MIK-Debug:WChar] ⚠️ 不一致! cString_len=%zu getBytes_len=%zu", lenOrig, lenCopy);
-        // 找到第一个不同的位置
-        size_t minLen = MIN(lenOrig, lenCopy);
-        for (size_t i = 0; i < minLen; i++) {
-          if (filename[i] != filenameCopy[i]) {
-            NSLog(@"  [MIK-Debug:WChar] 首个差异 pos=%zu: cString=U+%04X getBytes=U+%04X", i, (unsigned)filename[i], (unsigned)filenameCopy[i]);
-            break;
-          }
-        }
-      }
-    }
-
-    // 先用原始方式尝试打开
-    errno = 0;
     size_t res = mi->Open(filename);
 
-    // 如果原始方式失败，尝试用 getBytes 缓冲区
-    if (!res && filenameCopy) {
-      NSLog(@"  [MIK-Debug:Open] cString 方式失败，尝试 getBytes 缓冲区...");
-      errno = 0;
-      res = mi->Open(filenameCopy);
-      if (res) {
-        NSLog(@"  [MIK-Debug:Open] ✅ getBytes 方式成功! 确认是 cStringUsingEncoding 临时指针问题");
-      } else {
-        NSLog(@"  [MIK-Debug:Open] ❌ getBytes 方式也失败，问题不在指针生命周期");
+    // 后备: cStringUsingEncoding 偶发返回脏数据，改用 getBytes 拷贝到自有缓冲区
+    if (!res) {
+      NSString *pathStr = [fileURL path];
+      NSUInteger len = [pathStr length];
+      size_t bufSize = (len + 1) * sizeof(wchar_t);
+      wchar_t *filenameFallback = (wchar_t *)calloc(len + 1, sizeof(wchar_t));
+      if (filenameFallback) {
+        NSUInteger usedLength = 0;
+        [pathStr getBytes:filenameFallback
+                maxLength:bufSize - sizeof(wchar_t)
+               usedLength:&usedLength
+                 encoding:NSUTF32LittleEndianStringEncoding
+                  options:0
+                    range:NSMakeRange(0, len)
+           remainingRange:NULL];
+        res = mi->Open(filenameFallback);
+        #if DEBUG
+        if (res) {
+          NSLog(@"[MIK-Debug:Open] cStringUsingEncoding 失败，getBytes 后备成功: %@", [fileURL lastPathComponent]);
+        }
+        #endif
+        free(filenameFallback);
       }
     }
 
-    if (filenameCopy) free(filenameCopy);
-
     if (!res) {
-      int savedErrno = errno;
-      NSFileManager *fm = [NSFileManager defaultManager];
-      BOOL exists = [fm fileExistsAtPath:fileURL.path];
-      BOOL readable = [fm isReadableFileAtPath:fileURL.path];
-      NSDictionary *attrs = [fm attributesOfItemAtPath:fileURL.path error:nil];
-      unsigned long long fileSize = [attrs fileSize];
       NSLog(@"MediaInfo cannot open file: %@", fileURL.path);
-      NSLog(@"  [MIK-Debug:Open] path_length=%lu exists=%d readable=%d size=%llu errno=%d(%s)",
-            (unsigned long)[fileURL.path length], exists, readable, fileSize,
-            savedErrno, strerror(savedErrno));
-      // 额外检查：尝试用 fopen 验证系统层面是否能打开
-      FILE *fp = fopen([fileURL.path fileSystemRepresentation], "rb");
-      if (fp) {
-        NSLog(@"  [MIK-Debug:Open] fopen_ok=YES (系统可打开，libmediainfo 解析失败)");
-        fclose(fp);
-      } else {
-        int fopenErrno = errno;
-        NSLog(@"  [MIK-Debug:Open] fopen_ok=NO errno=%d(%s)", fopenErrno, strerror(fopenErrno));
-      }
       delete mi;
       self = nil;
     } else {
