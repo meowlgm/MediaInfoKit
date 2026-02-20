@@ -46,34 +46,28 @@ static const NSInteger paddingLenth = 30;
     mi->Option([@"setlocale_LC_CTYPE" mik_WCHARString],
                [@"UTF-8" mik_WCHARString]);
 
-    // 主路径: cStringUsingEncoding
-    const wchar_t *filename = [[fileURL path] mik_WCHARString];
-    size_t res = mi->Open(filename);
-
-    // 后备: cStringUsingEncoding 偶发返回脏数据，改用 getBytes 拷贝到自有缓冲区
-    if (!res) {
-      NSString *pathStr = [fileURL path];
-      NSUInteger len = [pathStr length];
-      size_t bufSize = (len + 1) * sizeof(wchar_t);
-      wchar_t *filenameFallback = (wchar_t *)calloc(len + 1, sizeof(wchar_t));
-      if (filenameFallback) {
-        NSUInteger usedLength = 0;
-        [pathStr getBytes:filenameFallback
-                maxLength:bufSize - sizeof(wchar_t)
-               usedLength:&usedLength
-                 encoding:NSUTF32LittleEndianStringEncoding
-                  options:0
-                    range:NSMakeRange(0, len)
-           remainingRange:NULL];
-        res = mi->Open(filenameFallback);
-        #if DEBUG
-        if (res) {
-          NSLog(@"[MIK-Debug:Open] cStringUsingEncoding 失败，getBytes 后备成功: %@", [fileURL lastPathComponent]);
-        }
-        #endif
-        free(filenameFallback);
-      }
+    // 使用 getBytes 拷贝到自有缓冲区，避免 cStringUsingEncoding 临时指针偶发脏数据
+    NSString *pathStr = [fileURL path];
+    NSUInteger len = [pathStr length];
+    size_t bufSize = (len + 1) * sizeof(wchar_t);
+    wchar_t *filename = (wchar_t *)calloc(len + 1, sizeof(wchar_t));
+    if (!filename) {
+      NSLog(@"MediaInfo cannot allocate buffer for path: %@", pathStr);
+      delete mi;
+      self = nil;
+      return self;
     }
+    NSUInteger usedLength = 0;
+    [pathStr getBytes:filename
+            maxLength:bufSize - sizeof(wchar_t)
+           usedLength:&usedLength
+             encoding:NSUTF32LittleEndianStringEncoding
+              options:0
+                range:NSMakeRange(0, len)
+       remainingRange:NULL];
+
+    size_t res = mi->Open(filename);
+    free(filename);
 
     if (!res) {
       NSLog(@"MediaInfo cannot open file: %@", fileURL.path);
