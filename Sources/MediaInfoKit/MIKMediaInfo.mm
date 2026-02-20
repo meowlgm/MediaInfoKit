@@ -47,9 +47,28 @@ static const NSInteger paddingLenth = 30;
                [@"UTF-8" mik_WCHARString]);
 
     const wchar_t *filename = [[fileURL path] mik_WCHARString];
+    errno = 0;  // 重置 errno，以便捕获 Open 内部的系统错误
     size_t res = mi->Open(filename);
     if (!res) {
+      int savedErrno = errno;
+      NSFileManager *fm = [NSFileManager defaultManager];
+      BOOL exists = [fm fileExistsAtPath:fileURL.path];
+      BOOL readable = [fm isReadableFileAtPath:fileURL.path];
+      NSDictionary *attrs = [fm attributesOfItemAtPath:fileURL.path error:nil];
+      unsigned long long fileSize = [attrs fileSize];
       NSLog(@"MediaInfo cannot open file: %@", fileURL.path);
+      NSLog(@"  [MIK-Debug:Open] path_length=%lu exists=%d readable=%d size=%llu errno=%d(%s)",
+            (unsigned long)[fileURL.path length], exists, readable, fileSize,
+            savedErrno, strerror(savedErrno));
+      // 额外检查：尝试用 fopen 验证系统层面是否能打开
+      FILE *fp = fopen([fileURL.path fileSystemRepresentation], "rb");
+      if (fp) {
+        NSLog(@"  [MIK-Debug:Open] fopen_ok=YES (系统可打开，libmediainfo 解析失败)");
+        fclose(fp);
+      } else {
+        int fopenErrno = errno;
+        NSLog(@"  [MIK-Debug:Open] fopen_ok=NO errno=%d(%s)", fopenErrno, strerror(fopenErrno));
+      }
       delete mi;
       self = nil;
     } else {
