@@ -12,13 +12,8 @@
 #import "NSString+MIK.h"
 
 #import "MediaInfoDLL_Static.h"
-#import <os/lock.h>
 
 static const NSInteger paddingLenth = 30;
-
-/// C++ MediaInfoDLL 的构造函数和 setlocale 调用内部使用了非线程安全的全局状态，
-/// 必须串行执行。此锁只保护实例创建阶段，后续的 Open() 和数据读取可并发。
-static os_unfair_lock sMIKInitLock = OS_UNFAIR_LOCK_INIT;
 
 #define FONT_ATTR_DICT(fn, fs)                                                 \
   @{NSFontAttributeName : [NSFont fontWithName:fn size:fs]}
@@ -39,8 +34,15 @@ static os_unfair_lock sMIKInitLock = OS_UNFAIR_LOCK_INIT;
 
 @implementation MIKMediaInfo
 
+/// C++ MediaInfoDLL 的 setlocale 调用非线程安全，
+/// 必须在任何实例创建之前全局调用一次。
+/// +initialize 由 ObjC 运行时保证线程安全且只调用一次。
 + (void)initialize {
   setenv("LC_CTYPE", "UTF-8", 0);
+  // 全局设置 locale，对所有后续 MediaInfo 实例生效
+  // 移至此处后, initWithFileURL: 无需再 per-instance 调用，也无需加锁
+  MediaInfoDLL::MediaInfo::Option_Static(
+      [@"setlocale_LC_CTYPE" mik_WCHARString], [@"UTF-8" mik_WCHARString]);
 }
 
 - (nullable instancetype)initWithFileURL:(NSURL *)fileURL {
@@ -48,14 +50,9 @@ static os_unfair_lock sMIKInitLock = OS_UNFAIR_LOCK_INIT;
   if (self) {
     self.fileURL = fileURL;
 
-    // 临界区：C++ MediaInfo 构造 + setlocale 选项设置（非线程安全）
-    // 锁范围最小化，仅保护这两行，后续 Open() 可并发执行
-    MediaInfoDLL::MediaInfo *mi;
-    os_unfair_lock_lock(&sMIKInitLock);
-    mi = new MediaInfoDLL::MediaInfo();
-    mi->Option([@"setlocale_LC_CTYPE" mik_WCHARString],
-               [@"UTF-8" mik_WCHARString]);
-    os_unfair_lock_unlock(&sMIKInitLock);
+    // 无需加锁：setlocale 已在 +initialize 中全局设置一次
+    // 不同 MediaInfo 实例的构造和 Open() 可完全并发执行
+    MediaInfoDLL::MediaInfo *mi = new MediaInfoDLL::MediaInfo();
 
     // 使用 getBytes 拷贝到自有缓冲区，避免 cStringUsingEncoding
     // 临时指针偶发脏数据
