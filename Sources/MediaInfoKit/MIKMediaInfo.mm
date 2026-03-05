@@ -12,8 +12,13 @@
 #import "NSString+MIK.h"
 
 #import "MediaInfoDLL_Static.h"
+#import <os/lock.h>
 
 static const NSInteger paddingLenth = 30;
+
+/// C++ MediaInfoDLL 的构造函数和 setlocale 调用内部使用了非线程安全的全局状态，
+/// 必须串行执行。此锁只保护实例创建阶段，后续的 Open() 和数据读取可并发。
+static os_unfair_lock sMIKInitLock = OS_UNFAIR_LOCK_INIT;
 
 #define FONT_ATTR_DICT(fn, fs)                                                 \
   @{NSFontAttributeName : [NSFont fontWithName:fn size:fs]}
@@ -42,11 +47,18 @@ static const NSInteger paddingLenth = 30;
   self = [super init];
   if (self) {
     self.fileURL = fileURL;
-    MediaInfoDLL::MediaInfo *mi = new MediaInfoDLL::MediaInfo();
+
+    // 临界区：C++ MediaInfo 构造 + setlocale 选项设置（非线程安全）
+    // 锁范围最小化，仅保护这两行，后续 Open() 可并发执行
+    MediaInfoDLL::MediaInfo *mi;
+    os_unfair_lock_lock(&sMIKInitLock);
+    mi = new MediaInfoDLL::MediaInfo();
     mi->Option([@"setlocale_LC_CTYPE" mik_WCHARString],
                [@"UTF-8" mik_WCHARString]);
+    os_unfair_lock_unlock(&sMIKInitLock);
 
-    // 使用 getBytes 拷贝到自有缓冲区，避免 cStringUsingEncoding 临时指针偶发脏数据
+    // 使用 getBytes 拷贝到自有缓冲区，避免 cStringUsingEncoding
+    // 临时指针偶发脏数据
     NSString *pathStr = [fileURL path];
     NSUInteger len = [pathStr length];
     size_t bufSize = (len + 1) * sizeof(wchar_t);
@@ -59,12 +71,12 @@ static const NSInteger paddingLenth = 30;
     }
     NSUInteger usedLength = 0;
     [pathStr getBytes:filename
-            maxLength:bufSize - sizeof(wchar_t)
-           usedLength:&usedLength
-             encoding:NSUTF32LittleEndianStringEncoding
-              options:0
-                range:NSMakeRange(0, len)
-       remainingRange:NULL];
+             maxLength:bufSize - sizeof(wchar_t)
+            usedLength:&usedLength
+              encoding:NSUTF32LittleEndianStringEncoding
+               options:0
+                 range:NSMakeRange(0, len)
+        remainingRange:NULL];
 
     size_t res = mi->Open(filename);
     free(filename);
@@ -100,71 +112,73 @@ static const NSInteger paddingLenth = 30;
 /// 使用纯 API 构建流信息（不解析任何文本）
 - (void)buildStreamInfoFromAPI:(void *)handle {
   MediaInfoDLL::MediaInfo *mi = (MediaInfoDLL::MediaInfo *)handle;
-  
+
   self.streamNames = [NSMutableArray array];
   self.streamsOrder = [NSMutableDictionary dictionary];
   self.streamsInfo = [NSMutableDictionary dictionary];
-  
+
   // 统计每种流类型的数量
   NSMutableDictionary *streamTypeCounts = [NSMutableDictionary dictionary];
   for (int kind = 0; kind < MediaInfoDLL::Stream_Max; kind++) {
     size_t count = mi->Count_Get((MediaInfoDLL::stream_t)kind);
     if (count > 0) {
       // 获取流类型名称（永远是英文）
-      std::basic_string<MediaInfoDLL::Char> typeStr =
-          mi->Get((MediaInfoDLL::stream_t)kind, 0, [@"StreamKind" mik_WCHARString]);
+      std::basic_string<MediaInfoDLL::Char> typeStr = mi->Get(
+          (MediaInfoDLL::stream_t)kind, 0, [@"StreamKind" mik_WCHARString]);
       NSString *typeName = [[NSString alloc] mik_initWithWCHAR:typeStr.c_str()];
       streamTypeCounts[typeName] = @(count);
     }
   }
-  
+
   // 遍历所有流
   for (int kind = 0; kind < MediaInfoDLL::Stream_Max; kind++) {
     MediaInfoDLL::stream_t streamKind = (MediaInfoDLL::stream_t)kind;
     size_t streamCount = mi->Count_Get(streamKind);
-    
+
     for (size_t streamPos = 0; streamPos < streamCount; streamPos++) {
       // 获取流名称（英文）
       std::basic_string<MediaInfoDLL::Char> typeStr =
           mi->Get(streamKind, streamPos, [@"StreamKind" mik_WCHARString]);
       NSString *typeName = [[NSString alloc] mik_initWithWCHAR:typeStr.c_str()];
-      
+
       // 构建流名称
       NSString *streamName;
       if ([streamTypeCounts[typeName] integerValue] == 1) {
         streamName = typeName;
       } else {
-        streamName = [NSString stringWithFormat:@"%@ #%zu", typeName, streamPos + 1];
+        streamName =
+            [NSString stringWithFormat:@"%@ #%zu", typeName, streamPos + 1];
       }
-      
+
       // 获取参数
       NSMutableArray *paramOrder = [NSMutableArray array];
       NSMutableDictionary *paramInfo = [NSMutableDictionary dictionary];
-      
+
       size_t paramCount = mi->Count_Get(streamKind, streamPos);
       for (size_t paramIdx = 0; paramIdx < paramCount; paramIdx++) {
         // 检查是否显示在 Inform() 中
-        std::basic_string<MediaInfoDLL::Char> options =
-            mi->Get(streamKind, streamPos, paramIdx, MediaInfoDLL::Info_Options);
+        std::basic_string<MediaInfoDLL::Char> options = mi->Get(
+            streamKind, streamPos, paramIdx, MediaInfoDLL::Info_Options);
         if (options.empty() || options[0] != 'Y') {
-          continue;  // 跳过不显示的参数
+          continue; // 跳过不显示的参数
         }
-        
+
         // 获取翻译后的参数名
-        std::basic_string<MediaInfoDLL::Char> nameStr =
-            mi->Get(streamKind, streamPos, paramIdx, MediaInfoDLL::Info_Name_Text);
+        std::basic_string<MediaInfoDLL::Char> nameStr = mi->Get(
+            streamKind, streamPos, paramIdx, MediaInfoDLL::Info_Name_Text);
         // 获取翻译后的参数值
         std::basic_string<MediaInfoDLL::Char> valueStr =
             mi->Get(streamKind, streamPos, paramIdx, MediaInfoDLL::Info_Text);
-        
+
         if (!nameStr.empty() && !valueStr.empty()) {
           NSString *name = [[NSString alloc] mik_initWithWCHAR:nameStr.c_str()];
-          NSString *value = [[NSString alloc] mik_initWithWCHAR:valueStr.c_str()];
+          NSString *value =
+              [[NSString alloc] mik_initWithWCHAR:valueStr.c_str()];
           [paramOrder addObject:name];
           [paramInfo setObject:value forKey:name];
         }
       }
-      
+
       [self.streamNames addObject:streamName];
       [self.streamsOrder setObject:paramOrder forKey:streamName];
       [self.streamsInfo setObject:paramInfo forKey:streamName];
